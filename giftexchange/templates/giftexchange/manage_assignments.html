@@ -1,0 +1,18 @@
+<h1>Manage Assignments</h1>
+<h2>giftexchange.title</h2>
+<a href="{% url 'giftexchange_manage_dashboard' giftexchange_id=giftexchange.pk %}">Back</a>
+{% if not giftexchange.assignments_locked %}
+	<div><a href="{% url 'giftexchange_set_assignments' giftexchange_id=giftexchange.pk %}"><button>{% if assignments %}Reset {% endif%}Assignments</button></a>
+	{% if assignments %}<div><a href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button>Lock Assignments</button></a>{% endif%}
+	{% else %}
+	<div><a href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button>Unlock Assignments</button></a>
+{% endif %}
+<table>
+	{% for assignment in assignments %}
+		<tr>
+			<td>{{assignment.giver.appuser}}</td>
+			<td>gives to</td>
+			<td>{{assignment.reciever.appuser}}</td>
+		</tr>
+	{% endfor %}
+</table>
