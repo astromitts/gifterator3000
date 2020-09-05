@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<meta name="description" content="">
+	<meta name="keywords" content="">
+	<meta name="author" content="Bo Morin">
+	<title>Gift X</title>
+	<link rel="shortcut icon" href="{% static 'images/favicon.ico' %}" />
+	<meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' name='viewport' />
+	{% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+<div class="container">
+	<div id="main-content">
+	{% block messages %}
+		{% if messages %}
+			<div class="row">
+				<div class="col">
+				    {% for message in messages %}
+				    <div class="alert">
+					 	<strong>{{message.level_tag|title}}: </strong> {{message|safe}}
+					</div>
+				    {% endfor %}
+				</div>
+			</div>
+			{% endif %}
+		{% endblock %}
+		{% block page_content %}{% endblock %}
+	</div>
+</div>
+{% block extra_js %}{% endblock %}
+</body>

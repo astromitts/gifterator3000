@@ -19,6 +19,8 @@ from giftexchange import views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
+    path('login/', views.login_handler, name='login'),
+    path('logout/', views.logout_handler, name='logout'),
     path('giftexchange/<int:giftexchange_id>/editdetails/', views.giftexchange_detail_edit, name='giftexchange_detail_edit'),
     path('giftexchange/<int:giftexchange_id>/manage/', views.giftexchange_manage_dashboard, name='giftexchange_manage_dashboard'),
     path('giftexchange/<int:giftexchange_id>/manage/editdetails/', views.giftexchange_manage_edit_details, name='giftexchange_manage_edit_details'),

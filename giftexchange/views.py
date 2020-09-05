@@ -1,12 +1,59 @@
 from datetime import date
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, logout
 from django.template import loader
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.contrib.auth.models import User
 
-from giftexchange.forms import ParticipantDetailsForm, GiftExchangeDetailsForm
+from giftexchange.forms import ParticipantDetailsForm, GiftExchangeDetailsForm, LoginForm
 from giftexchange.models import Participant, AppUser, GiftExchange
+
+
+def login_handler(request):
+	if request.user.is_authenticated:
+		messages.info(request, 'You are already logged in')
+		return redirect(reverse('dashboard'))
+
+	template = loader.get_template('giftexchange/generic_form.html')
+	if request.user.is_authenticated:
+		return redirect(reverse('dashboard'))
+	if request.POST:
+		data = request.POST.copy()
+		form = LoginForm(data)
+		if form.is_valid():
+			try:
+				user = User.objects.get(email=data['email'])
+				if user.check_password(data['password']):
+					login(request, user)
+					return redirect(reverse('dashboard'))
+				else: 
+					context = {
+						'form': form
+					}
+					messages.error(request, 'Invalid password.')
+					return HttpResponse(template.render(context, request))
+			except Exception as exc:
+				context = {
+					'form': form
+				}
+				messages.error(request, 'Invalid email.')
+				return HttpResponse(template.render(context, request))
+
+	else:
+		form = LoginForm()
+		context = {
+			'form': form
+		}
+	return HttpResponse(template.render(context, request))
+
+
+def logout_handler(request):
+    logout(request)
+    return redirect(reverse('login'))
+
 
 def _get_participant_and_exchange(appuser, giftexchange_id):
 	giftexchange = None
@@ -74,7 +121,7 @@ def giftexchange_detail_edit(request, giftexchange_id):
 	if not particpant_details:
 		return Http404('User not a participant on this exchange')
 
-	template = loader.get_template('giftexchange/giftexchange_detail_edit.html')
+	template = loader.get_template('giftexchange/generic_form.html')
 
 	if request.POST:
 		form = ParticipantDetailsForm(request.POST)
@@ -125,7 +172,7 @@ def giftexchange_manage_edit_details(request, giftexchange_id):
 	if not appuser in giftexchange.admin_appuser.all():
 		return Http404('User not an admin on this exchange')
 
-	template = loader.get_template('giftexchange/giftexchange_detail_edit.html')
+	template = loader.get_template('giftexchange/generic_form.html')
 
 	if request.POST:
 		form = GiftExchangeDetailsForm(request.POST)
