@@ -1,47 +1,51 @@
-<h1>Gift Exchange Details</h1>
-<h2>{{giftexchange.title}}</h2>
-<p>{{giftexchange.description}}</p>
-{% if appuser in giftexchange.admin_appuser.all %}
-<a href="{% url 'giftexchange_manage_dashboard' giftexchange_id=giftexchange.pk %}">manage</a>
-{% endif %}
+{% extends 'giftexchange/base.html' %}
 
-<h3>My details</h3>
-<div class="objectdetails">
-	{% if not giftexchange.assignments_locked %}
-		<div class="objectdetails_editlink"><a href="{% url 'giftexchange_detail_edit' giftexchange_id=giftexchange.pk %}">Edit</a></div>
+{% block page_content %}
+	<h1>Gift Exchange Details</h1>
+	<h2>{{giftexchange.title}}</h2>
+	<p>{{giftexchange.description}}</p>
+	{% if appuser in giftexchange.admin_appuser.all %}
+	<a href="{% url 'giftexchange_manage_dashboard' giftexchange_id=giftexchange.pk %}">manage</a>
 	{% endif %}
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Likes</div>
-			<div class="objectdetails_item--value">{{particpant_details.likes}}</div>
-		</div>
 
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Dislikes</div>
-			<div class="objectdetails_item--value">{{particpant_details.dislikes}}</div>
-		</div>
-
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Allergies & sensitivities</div>
-			<div class="objectdetails_item--value">{{particpant_details.allergies_sensitivities}}</div>
-		</div>
-</div>
-
-{% if giftexchange.assignments_locked %}
-	<h3>My Assigment: {{assignment_details.appuser.djangouser.first_name}} {{assignment_details.appuser.djangouser.last_name}}</h3>
+	<h3>My details</h3>
 	<div class="objectdetails">
+		{% if not giftexchange.assignments_locked %}
+			<div class="objectdetails_editlink"><a href="{% url 'giftexchange_detail_edit' giftexchange_id=giftexchange.pk %}">Edit</a></div>
+		{% endif %}
 			<div class="objectdetails_item">
 				<div class="objectdetails_item--title">Likes</div>
-				<div class="objectdetails_item--value">{{assignment_details.likes}}</div>
+				<div class="objectdetails_item--value">{{particpant_details.likes}}</div>
 			</div>
 
 			<div class="objectdetails_item">
 				<div class="objectdetails_item--title">Dislikes</div>
-				<div class="objectdetails_item--value">{{assignment_details.dislikes}}</div>
+				<div class="objectdetails_item--value">{{particpant_details.dislikes}}</div>
 			</div>
 
 			<div class="objectdetails_item">
 				<div class="objectdetails_item--title">Allergies & sensitivities</div>
-				<div class="objectdetails_item--value">{{assignment_details.allergies_sensitivities}}</div>
+				<div class="objectdetails_item--value">{{particpant_details.allergies_sensitivities}}</div>
 			</div>
 	</div>
-{% endif %}
+
+	{% if giftexchange.assignments_locked %}
+		<h3>My Assigment: {{assignment_details.appuser.djangouser.first_name}} {{assignment_details.appuser.djangouser.last_name}}</h3>
+		<div class="objectdetails">
+				<div class="objectdetails_item">
+					<div class="objectdetails_item--title">Likes</div>
+					<div class="objectdetails_item--value">{{assignment_details.likes}}</div>
+				</div>
+
+				<div class="objectdetails_item">
+					<div class="objectdetails_item--title">Dislikes</div>
+					<div class="objectdetails_item--value">{{assignment_details.dislikes}}</div>
+				</div>
+
+				<div class="objectdetails_item">
+					<div class="objectdetails_item--title">Allergies & sensitivities</div>
+					<div class="objectdetails_item--value">{{assignment_details.allergies_sensitivities}}</div>
+				</div>
+		</div>
+	{% endif %}
+{% endblock %}

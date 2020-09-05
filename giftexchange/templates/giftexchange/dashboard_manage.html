@@ -1,34 +1,37 @@
-<h1>Gift Exchange Details</h1>
-<h2>{{giftexchange.title}}</h2>
-<a href="{% url 'giftexchange_detail' giftexchange_id=giftexchange.pk %}">Back</a>
-<div class="objectdetails">
-	{% if not giftexchange.assignments_locked %}
-		<div class="objectdetails_editlink"><a href="{% url 'giftexchange_manage_edit_details' giftexchange_id=giftexchange.pk %}">Edit</a></div>
-	{% endif %}
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Title</div>
-			<div class="objectdetails_item--value">{{giftexchange.title}}</div>
-		</div>
+{% extends 'giftexchange/base.html' %}
 
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Description</div>
-			<div class="objectdetails_item--value">{{giftexchange.description}}</div>
-		</div>
+{% block page_content %}
+	<h1>Gift Exchange Details</h1>
+	<h2>{{giftexchange.title}}</h2>
+	<div class="objectdetails">
+		{% if not giftexchange.assignments_locked %}
+			<div class="objectdetails_editlink"><a href="{% url 'giftexchange_manage_edit_details' giftexchange_id=giftexchange.pk %}">Edit</a></div>
+		{% endif %}
+			<div class="objectdetails_item">
+				<div class="objectdetails_item--title">Title</div>
+				<div class="objectdetails_item--value">{{giftexchange.title}}</div>
+			</div>
 
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Spending Limit</div>
-			<div class="objectdetails_item--value">{{giftexchange.spending_limit}}</div>
-		</div>
+			<div class="objectdetails_item">
+				<div class="objectdetails_item--title">Description</div>
+				<div class="objectdetails_item--value">{{giftexchange.description}}</div>
+			</div>
 
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Date</div>
-			<div class="objectdetails_item--value">{{giftexchange.date}}</div>
-		</div>
+			<div class="objectdetails_item">
+				<div class="objectdetails_item--title">Spending Limit</div>
+				<div class="objectdetails_item--value">{{giftexchange.spending_limit}}</div>
+			</div>
 
-		<div class="objectdetails_item">
-			<div class="objectdetails_item--title">Assignments locked</div>
-			<div class="objectdetails_item--value">{{giftexchange.assignments_locked}}</div>
-		</div>
-</div>
+			<div class="objectdetails_item">
+				<div class="objectdetails_item--title">Date</div>
+				<div class="objectdetails_item--value">{{giftexchange.date}}</div>
+			</div>
 
-<div class="objectdetails_editlink"><a href="{% url 'giftexchange_manage_assignments' giftexchange_id=giftexchange.pk %}">Manage Assignments</a></div>
+			<div class="objectdetails_item">
+				<div class="objectdetails_item--title">Assignments locked</div>
+				<div class="objectdetails_item--value">{{giftexchange.assignments_locked}}</div>
+			</div>
+	</div>
+
+	<div class="objectdetails_editlink"><a href="{% url 'giftexchange_manage_assignments' giftexchange_id=giftexchange.pk %}">Manage Assignments</a></div>
+{% endblock %}

@@ -15,24 +15,55 @@
 </head>
 
 <body>
-
-<div class="container">
-	<div id="main-content">
-	{% block messages %}
-		{% if messages %}
-			<div class="row">
-				<div class="col">
-				    {% for message in messages %}
-				    <div class="alert">
-					 	<strong>{{message.level_tag|title}}: </strong> {{message|safe}}
-					</div>
-				    {% endfor %}
-				</div>
+	{% block header_nav %}
+		<nav class="navbar navbar-expand-sm bg-light navbar-light">
+			<div class="container">
+				<a class="navbar-brand" href="{% url 'dashboard' %}">
+					<img src="{% static '' %}" width="250px"/>
+				</a>
+				<ul class="navbar-nav">
+					{% if request.user.is_authenticated %}
+						<li class="nav-item">
+							<a class="nav-link" href="{% url 'logout' %}">Log Out</a>
+						</li>
+					{% else %}
+						<li class="nav-item">
+							<a class="nav-link" href="{% url 'login' %}">Log In</a>
+						</li>
+					{% endif %}
+				</ul>
 			</div>
-			{% endif %}
-		{% endblock %}
-		{% block page_content %}{% endblock %}
+		</nav>
+	{% endblock %}
+	<div class="container">
+		<div id="breadcrumbs">
+			{% for title, link in breadcrumbs %}
+				{% if link %}
+					<a href="{{link}}">{{title}}</a>
+				{% else %}
+					{{title}}
+				{% endif %}
+				{% if not forloop.last %} > {% endif %}
+			{% endfor %}
+		</div>
 	</div>
-</div>
-{% block extra_js %}{% endblock %}
+	<div class="container">
+		<div id="main-content">
+		{% block messages %}
+			{% if messages %}
+				<div class="row">
+					<div class="col">
+					    {% for message in messages %}
+					    <div class="alert">
+						 	<strong>{{message.level_tag|title}}: </strong> {{message|safe}}
+						</div>
+					    {% endfor %}
+					</div>
+				</div>
+				{% endif %}
+			{% endblock %}
+			{% block page_content %}{% endblock %}
+		</div>
+	</div>
+	{% block extra_js %}{% endblock %}
 </body>

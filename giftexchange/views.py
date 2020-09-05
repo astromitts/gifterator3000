@@ -81,6 +81,7 @@ def dashboard(request):
 			past_exchanges.append(cp.giftexchange)
 
 	context = {
+		'breadcrumbs': [('Dashboard', None)],
 		'current_exchanges': current_exchanges,
 		'past_exchanges': past_exchanges,
 	}
@@ -103,6 +104,10 @@ def giftexchange_detail(request, giftexchange_id):
 	
 	template = loader.get_template('giftexchange/giftexchange_detail.html')
 	context = {
+		'breadcrumbs': [
+			('dashboard', reverse('dashboard')),
+			(giftexchange.title, None)
+		],
 		'appuser': appuser,
 		'particpant_details': particpant_details,
 		'assignment_details': assignment_details,
@@ -136,6 +141,11 @@ def giftexchange_detail_edit(request, giftexchange_id):
 		form = ParticipantDetailsForm(instance=particpant_details)
 
 	context = {
+		'breadcrumbs': [
+			('dashboard', reverse('dashboard')),
+			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
+			('Edit My Details', None)
+		],
 		'form': form,
 	}
 	return HttpResponse(template.render(context, request))
@@ -155,6 +165,11 @@ def giftexchange_manage_dashboard(request, giftexchange_id):
 
 	template = loader.get_template('giftexchange/dashboard_manage.html')
 	context = {
+		'breadcrumbs': [
+			('dashboard', reverse('dashboard')),
+			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
+			('Admin', None)
+		],
 		'giftexchange': giftexchange
 	}
 	return HttpResponse(template.render(context, request))
@@ -188,6 +203,12 @@ def giftexchange_manage_edit_details(request, giftexchange_id):
 		form = GiftExchangeDetailsForm(instance=giftexchange)
 
 	context = {
+		'breadcrumbs': [
+			('dashboard', reverse('dashboard')),
+			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
+			('Admin', reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
+			('Edit', None)
+		],
 		'form': form,
 	}
 	return HttpResponse(template.render(context, request))
@@ -207,6 +228,12 @@ def giftexchange_manage_assignments(request, giftexchange_id):
 
 	template = loader.get_template('giftexchange/manage_assignments.html')
 	context = {
+		'breadcrumbs': [
+			('dashboard', reverse('dashboard')),
+			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
+			('Admin', reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
+			('Manage Assignments', None)
+		],
 		'giftexchange': giftexchange,
 		'assignments': giftexchange.ordered_assignments
 	}

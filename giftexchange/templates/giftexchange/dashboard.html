@@ -1,3 +1,7 @@
-{% for ge in current_exchanges %}
-	<a href="{% url 'giftexchange_detail' giftexchange_id=ge.pk %}">{{ge.title}}</a>
-{% endfor %}
+{% extends 'giftexchange/base.html' %}
+
+{% block page_content %}
+	{% for ge in current_exchanges %}
+		<a href="{% url 'giftexchange_detail' giftexchange_id=ge.pk %}">{{ge.title}}</a>
+	{% endfor %}
+{% endblock %}
