@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from datetime import date, timedelta
-from giftexchange.migration_resources import participant_sample
+from giftexchange.sample_data import participant_sample
 
 from giftexchange.models import AppUser, Participant, GiftExchange
 

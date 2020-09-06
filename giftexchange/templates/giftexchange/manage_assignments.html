@@ -1,21 +1,30 @@
 {% extends 'giftexchange/base.html' %}
 
 {% block page_content %}
-	<h1>Manage Assignments</h1>
-	<h2>giftexchange.title</h2>
-	{% if not giftexchange.assignments_locked %}
-		<div><a href="{% url 'giftexchange_set_assignments' giftexchange_id=giftexchange.pk %}"><button>{% if assignments %}Reset {% endif%}Assignments</button></a>
-		{% if assignments %}<div><a href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button>Lock Assignments</button></a>{% endif%}
+	<h2>{{giftexchange.title}} Assignments</h2>
+	<div class="row">
+		<div class="col">
+		{% if not giftexchange.assignments_locked %}
+			<a class="float-left"  href="{% url 'giftexchange_set_assignments' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">{% if assignments %}Reset {%else%}Set {% endif%}Assignments</button></a>
+			{% if assignments %}
+				<a class="float-right" href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Lock Assignments</button></a>
+			{% endif%}
 		{% else %}
-		<div><a href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button>Unlock Assignments</button></a>
-	{% endif %}
-	<table>
-		{% for assignment in assignments %}
-			<tr>
-				<td>{{assignment.giver.appuser}}</td>
-				<td>gives to</td>
-				<td>{{assignment.reciever.appuser}}</td>
-			</tr>
-		{% endfor %}
-	</table>
+			<a class="float-right" href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Unlock Assignments</button></a>
+		{% endif %}
+		</div>
+	</div>
+	<div class="row">
+		<div class="col">
+		<table class="table table-bordered">
+			{% for assignment in assignments %}
+				<tr>
+					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.giver.appuser.pk %}">{{assignment.giver.appuser}}</a></td>
+					<td>gives to</td>
+					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.reciever.appuser.pk %}">{{assignment.reciever.appuser}}</a></td>
+				</tr>
+			{% endfor %}
+		</table>
+		</div>
+	</div>
 {% endblock %}

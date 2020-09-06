@@ -9,6 +9,10 @@ class AppUser(models.Model):
 	def __str__(self):
 		return '{} {} ({})'.format(self.djangouser.first_name, self.djangouser.last_name, self.djangouser.email)
 
+	def is_giftexchange_admin(self, giftexchange_id):
+		giftexchange = GiftExchange.objects.get(pk=giftexchange_id)
+		return self in giftexchange.admin_appuser.all()
+
 	def exchange_participant(self, giftexchange):
 		participant_exists = Participant.objects.filter(appuser=self, giftexchange=giftexchange).exists()
 		if participant_exists:
@@ -83,23 +87,38 @@ class GiftExchange(models.Model):
 	@property
 	def ordered_assignments(self):
 		assignments = []
-		start_assignment = self.exchangeassignment_set.order_by('pk').first()
-		next_assignment = start_assignment
-		next_giver = start_assignment.reciever
-		while next_assignment.reciever != start_assignment.giver:
+		if self.exchangeassignment_set.count() > 0:
+			start_assignment = self.exchangeassignment_set.order_by('pk').first()
+			next_assignment = start_assignment
+			next_giver = start_assignment.reciever
+			while next_assignment.reciever != start_assignment.giver:
+				assignments.append(next_assignment)
+				next_assignment = self.exchangeassignment_set.all().get(giver=next_assignment.reciever)
+				next_giver = next_assignment.reciever
 			assignments.append(next_assignment)
-			next_assignment = self.exchangeassignment_set.all().get(giver=next_assignment.reciever)
-			next_giver = next_assignment.reciever
-		assignments.append(next_assignment)
 		return assignments
 	
-
 	def update(self, date, location, description, spending_limit):
 		self.date = date
 		self.location = location
 		self.description = description
 		self.spending_limit = spending_limit
 		self.save()
+
+	@classmethod
+	def create(cls, title, date, location, description, spending_limit, appuser):
+		new_instance = cls(
+			title=title,
+			date=date,
+			location=location,
+			description=description,
+			spending_limit=spending_limit
+		)
+		new_instance.save()
+		new_instance.admin_appuser.add(appuser)
+		participant = Participant(giftexchange=new_instance, appuser=appuser)
+		participant.save()
+		return new_instance
 
 	@classmethod
 	def get_or_create(cls, title):
@@ -113,6 +132,19 @@ class GiftExchange(models.Model):
 			giftexchange.save()
 			created = True
 		return giftexchange, created
+
+	def add_participants(self, appuser_list):
+		participants = []
+		created_count = 0
+		for appuser in appuser_list:
+			new_participant, created = Participant.get_or_create(
+				giftexchange=self,
+				appuser=appuser
+			)
+			participants.append(new_participant)
+			if created:
+				created_count += 1
+		return participants, created_count
 
 
 	def _generate_assignments(self):

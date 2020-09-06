@@ -1,0 +1,21 @@
+{% extends 'giftexchange/base.html' %}
+
+{% block page_content %}
+<div class="row">
+	<div class="col">
+		{{confirm_message}}
+	</div>
+</div>
+<div class="row">
+	<div class="col-3 col">
+		<form class="form" method="POST" action="{{action}}">
+			{% csrf_token %}
+			<input type="hidden" id="confirm" name="confirm" value="1" />
+			<input type="submit" class="btn btn-primary" value="confirm" />
+		</form>
+	</div>
+	<div class="col-3 col">
+		<a class="float-right" href="{{return_url}}"><button class="btn btn-warning">Cancel</button></a>
+	</div>
+</div>
+{% endblock %}

@@ -1,7 +1,26 @@
 {% extends 'giftexchange/base.html' %}
 
 {% block page_content %}
-	{% for ge in current_exchanges %}
-		<a href="{% url 'giftexchange_detail' giftexchange_id=ge.pk %}">{{ge.title}}</a>
+	<h2>Current Gift Exchanges</h2>
+	<div class="row">
+	{% for giftexchange in current_exchanges %}
+		<div class="col-6">
+			<div class="card">
+			 	<div class="card-body">
+			 		<h5 class="card-title">{{giftexchange.title}}</h5>
+			 		<h6 class="card-subtitle mb-2 text-muted">{{giftexchange.location}}, {{giftexchange.date}}</h6>
+					<a href="{% url 'giftexchange_detail' giftexchange_id=giftexchange.pk %}" class="card-link">My Details</a>
+					{% if appuser in giftexchange.admin_appuser.all %}
+						<a href="{% url 'giftexchange_manage_dashboard' giftexchange_id=giftexchange.pk %}" class="card-link">Manage</a>
+					{% endif %}
+			 	</div>
+			</div>
+		</div>
 	{% endfor %}
+	</div>
+	<div class="row">
+		<div class="col">
+			<a href="{% url 'giftexchange_create_new' %}"><button class="btn btn-primary">+ Create</button></a>
+		</div>
+	</div>
 {% endblock %}

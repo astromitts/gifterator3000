@@ -11,6 +11,11 @@
 	<title>Gift X</title>
 	<link rel="shortcut icon" href="{% static 'images/favicon.ico' %}" />
 	<meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' name='viewport' />
+	<link href="{% static 'bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+	{% comment %}
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	{% endcomment %}
+	<script src="{% static 'bootstrap/js/bootstrap.min.js' %}"></script>
 	{% block extra_head %}{% endblock %}
 </head>
 
@@ -23,6 +28,9 @@
 				</a>
 				<ul class="navbar-nav">
 					{% if request.user.is_authenticated %}
+						<li class="nav-item active">
+							<p class="nav-link">Logged in as: {{request.user.username}}</p>
+						</li>
 						<li class="nav-item">
 							<a class="nav-link" href="{% url 'logout' %}">Log Out</a>
 						</li>
