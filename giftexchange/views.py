@@ -65,6 +65,8 @@ def logout_handler(request):
     return redirect(reverse('login'))
 
 class BaseView(View):
+	""" Base view class to hold commonly required utils
+	"""
 	def _get_participant_and_exchange(self, appuser, giftexchange_id):
 		giftexchange = None
 		participant_details = None
@@ -77,6 +79,9 @@ class BaseView(View):
 
 
 class AuthenticatedView(BaseView):
+	""" Base class thay boots you from a view if you are not logged in
+		also does some other variable assignments that are commonly required
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(AuthenticatedView, self).setup(request, *args, **kwargs)
 		if not self.request.user.is_authenticated:
@@ -93,6 +98,9 @@ class AuthenticatedView(BaseView):
 
 
 class GiftExchangeView(AuthenticatedView):
+	""" Base authenticated class that specifically validates that a given user
+		has permission to be on a page for a specific gift page
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangeView, self).setup(request, *args, **kwargs)
 
@@ -109,6 +117,10 @@ class GiftExchangeView(AuthenticatedView):
 
 
 class Dashboard(AuthenticatedView):
+	""" Home page
+		Lists all current gift exchanges that a user is participating in
+		Has link to create a new gift exchange
+	"""
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/dashboard.html')
 		today = date.today()
@@ -132,6 +144,8 @@ class Dashboard(AuthenticatedView):
 
 
 class CreateGiftExchange(AuthenticatedView):
+	""" View to handle creating a new gift exchange
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(CreateGiftExchange, self).setup(request, *args, **kwargs)
 		self.context = {
@@ -165,6 +179,8 @@ class CreateGiftExchange(AuthenticatedView):
 
 
 class GiftExchangeDetail(GiftExchangeView):
+	""" Display page for your details on a gift exchange
+	"""
 	def get(self, request, *args, **kwargs):
 		if not kwargs.get('appuser_id'):
 			appuser = AppUser.get(djangouser=request.user)
@@ -205,6 +221,9 @@ class GiftExchangeDetail(GiftExchangeView):
 
 
 class GiftExchangeDetailEdit(GiftExchangeView):
+	""" View to handle updating the participant details of a gift exchange
+		e.g., likes, dislikes, etc
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangeDetailEdit, self).setup(request, *args, **kwargs)
 		self.template = loader.get_template('giftexchange/generic_form.html')
@@ -238,7 +257,8 @@ class GiftExchangeDetailEdit(GiftExchangeView):
 
 
 class GiftExchangeAdminView(AuthenticatedView):
-
+	""" Authenticated view that allows only users who have admin access to a gift exchange
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangeAdminView, self).setup(request, *args, **kwargs)
 		self.giftexchange_id = kwargs['giftexchange_id']
@@ -254,6 +274,8 @@ class GiftExchangeAdminView(AuthenticatedView):
 
 
 class GiftExchangeAdminDetail(GiftExchangeAdminView):
+	""" Admin view of gift exchange details
+	"""
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/dashboard_manage.html')
 		context = {
@@ -268,6 +290,8 @@ class GiftExchangeAdminDetail(GiftExchangeAdminView):
 
 
 class GiftExchangeEdit(GiftExchangeAdminView):
+	""" Update handler for gift exchange details
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangeEdit, self).setup(request, *args, **kwargs)
 		self.return_url = reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})
@@ -303,6 +327,8 @@ class GiftExchangeEdit(GiftExchangeAdminView):
 
 
 class ViewAssignments(GiftExchangeAdminView):
+	""" List view of gift exchange assigments
+	"""
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/manage_assignments.html')
 		context = {
@@ -319,12 +345,16 @@ class ViewAssignments(GiftExchangeAdminView):
 
 
 class SetAssigments(GiftExchangeAdminView):
+	""" Handler for generating gift exchange assignments
+	"""
 	def get(self, request, *args, **kwargs):
 		self.giftexchange.generate_assignemnts()
 		return redirect(reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id}))
 
 
 class ToggleAssignmentLock(GiftExchangeAdminView):
+	""" Handler to toggle the locked state of gift exchange assignments
+	"""
 	def get(self, request, *args, **kwargs):
 		if self.giftexchange.assignments_locked:
 			self.giftexchange.unlock()
@@ -334,6 +364,8 @@ class ToggleAssignmentLock(GiftExchangeAdminView):
 
 
 class ParticipantsList(GiftExchangeAdminView):
+	""" List view of all gift exchange participants
+	""" 
 	def get(self, request, *args, **kwargs):
 		participants = self.giftexchange.participant_set.all()
 
@@ -352,6 +384,8 @@ class ParticipantsList(GiftExchangeAdminView):
 
 
 class ParticipantAdminAction(GiftExchangeAdminView):
+	""" Base view for gift exchange admin pages that target a specific participant
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(ParticipantAdminAction, self).setup(request, *args, **kwargs)
 		self.target_participant = Participant.objects.get(pk=kwargs['participant_id'])
@@ -359,6 +393,8 @@ class ParticipantAdminAction(GiftExchangeAdminView):
 
 
 class SetParticipantAdmin(ParticipantAdminAction):
+	""" Sets a participant of a gift exchange to an admin
+	"""
 	def post(self, request, *args, **kwargs):
 		self.giftexchange.admin_appuser.add(self.target_participant.appuser)
 		self.giftexchange.save()
@@ -388,6 +424,8 @@ class SetParticipantAdmin(ParticipantAdminAction):
 
 
 class UnsetParticipantAdmin(ParticipantAdminAction):
+	""" Removes a participant of a gift exchange as an admin
+	"""
 	def post(self, request, *args, **kwargs):
 		self.giftexchange.admin_appuser.remove(self.target_participant.appuser)
 		self.giftexchange.save()
@@ -417,6 +455,8 @@ class UnsetParticipantAdmin(ParticipantAdminAction):
 
 
 class ParticipantUpload(GiftExchangeAdminView):
+	""" Handler for uploading a CSV file of participants to a gift exchange
+	"""
 	def post(self, request, *args, **kwargs):
 		error = False
 		filehandle = request.FILES['file']
@@ -451,6 +491,8 @@ class ParticipantUpload(GiftExchangeAdminView):
 
 
 class RemoveParticipant(ParticipantAdminAction):
+	""" Handler for deleting a participant from a gift exchange
+	"""
 	def post(self, request, *args, **kwargs):
 		self.target_participant.delete()
 		messages.success(request, 'Participant removed from gift exchange')
