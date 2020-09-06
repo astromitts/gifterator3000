@@ -17,6 +17,7 @@ from giftexchange.forms import (
 	FileUploadForm,
 	ProfileForm,
 	PasswordResetForm,
+	PasswordChangeForm,
 )
 from giftexchange.models import Participant, AppUser, GiftExchange
 from giftexchange.utils import csv_lines_to_dict, save_parsed_participants_as_appusers
@@ -43,20 +44,26 @@ class LoginHandler(View):
 		if form.is_valid():
 			try:
 				user = User.objects.get(email=data['email'])
-				if user.check_password(data['password']):
-					login(request, user)
-					return redirect(reverse('dashboard'))
-				else: 
-					context = {
-						'form': form
-					}
-					messages.error(request, 'Invalid password.')
-					return HttpResponse(self.template.render(context, request))
 			except Exception as exc:
 				context = {
 					'form': form
 				}
 				messages.error(request, 'Invalid email.')
+				return HttpResponse(self.template.render(context, request))
+
+			if user.check_password(data['password']):
+				appuser, created = AppUser.get_or_create(djangouser=user)
+				if appuser.needs_password_reset:
+					messages.error(request, 'You must set a new password to proceed')
+					return redirect(reverse('reset_password'))
+				else:
+					login(request, user)
+					return redirect(reverse('dashboard'))
+			else: 
+				context = {
+					'form': form
+				}
+				messages.error(request, 'Invalid password.')
 				return HttpResponse(self.template.render(context, request))
 		else:
 			self.context['form'] = form
@@ -66,6 +73,43 @@ class LoginHandler(View):
 def logout_handler(request):
     logout(request)
     return redirect(reverse('login'))
+
+
+class ResetPassword(View):
+	def setup(self, request, *args, **kwargs):
+		super(ResetPassword, self).setup(request, *args, **kwargs)
+		self.template = loader.get_template('giftexchange/generic_form.html')
+		self.context = {}
+
+	def get(self, request, *args, **kwargs):
+		self.context['form'] = PasswordResetForm()
+		return HttpResponse(self.template.render(self.context, request))
+
+	def post(self, request, *args, **kwargs):
+		data = request.POST.copy()
+		form = PasswordResetForm(data)
+		if form.is_valid():
+			try:
+				djangouser = User.objects.get(email=data['email'])
+			except Exception as exc:
+				self.context['form'] = form
+				messages.error(request, 'Invalid email.')
+				return HttpResponse(self.template.render(context, request))
+			if djangouser.check_password(data['current_password']):
+				if request.POST['new_password'] == request.POST['confirm_new_password']:
+					djangouser.set_password(request.POST['new_password'])
+					djangouser.save()
+					appuser = AppUser.objects.get(djangouser=djangouser)
+					appuser.needs_password_reset = False
+					appuser.save()
+					messages.success(request, 'Password updated, please log in again')
+					return redirect(reverse('login'))
+				else:
+					messages.error(request, 'New password fields must match')
+			else:
+				messages.error(request, 'Current password given is not correct')
+		self.context['form'] = form
+		return HttpResponse(self.template.render(self.context, request))
 
 
 class BaseView(View):
@@ -101,19 +145,21 @@ class AuthenticatedView(BaseView):
 			self.giftexchange_id = self.giftexchange.pk
 
 
-class UpdatePassword(AuthenticatedView):
+class ChangePassword(AuthenticatedView):
+	""" Handler for a logged in user to change their password
+	"""
 	def setup(self, request, *args, **kwargs):
 		super(UpdatePassword, self).setup(request, *args, **kwargs)
 		self.template = loader.get_template('giftexchange/generic_form.html')
 		self.context = {}
 
 	def get(self, request, *args, **kwargs):
-		self.context['form'] = PasswordResetForm()
+		self.context['form'] = PasswordChangeForm()
 		return HttpResponse(self.template.render(self.context, request))
 
 	def post(self, request, *args, **kwargs):
 		data = request.POST.copy()
-		form = PasswordResetForm(data)
+		form = PasswordChangeForm(data)
 		if form.is_valid():
 			if request.user.check_password(data['current_password']):
 				if request.POST['new_password'] == request.POST['confirm_new_password']:
@@ -130,7 +176,6 @@ class UpdatePassword(AuthenticatedView):
 				messages.error(request, 'Current password given is not correct')
 		self.context['form'] = form
 		return HttpResponse(self.template.render(self.context, request))
-
 
 
 class ManageProfile(AuthenticatedView):

@@ -46,7 +46,14 @@ class ProfileForm(Form):
 	default_allergies_and_sensitivites = CharField(widget=Textarea, required=False)
 
 
+class PasswordChangeForm(Form):
+	current_password = CharField(widget=PasswordInput())
+	new_password = CharField(widget=PasswordInput())
+	confirm_new_password = CharField(widget=PasswordInput())
+
+
 class PasswordResetForm(Form):
+	email = EmailField()
 	current_password = CharField(widget=PasswordInput())
 	new_password = CharField(widget=PasswordInput())
 	confirm_new_password = CharField(widget=PasswordInput())
