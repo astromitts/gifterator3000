@@ -1,4 +1,4 @@
-from django.forms import Form, ModelForm, PasswordInput, FileField
+from django.forms import Form, ModelForm, PasswordInput, FileField, DateInput
 from django.contrib.auth.models import User
 from giftexchange.models import Participant, GiftExchange
 
@@ -13,12 +13,18 @@ class GiftExchangeDetailsForm(ModelForm):
 	class Meta:
 		model = GiftExchange
 		fields = ['location', 'description', 'spending_limit', 'date']
+		widgets = {
+			'date': DateInput(attrs={'class':'datepicker'}),
+		}
 
 
 class GiftExchangeCreateForm(ModelForm):
 	class Meta:
 		model = GiftExchange
 		fields = ['title', 'location', 'description', 'spending_limit', 'date']
+		widgets = {
+			'date': DateInput(attrs={'class':'datepicker'}),
+		}
 
 
 class LoginForm(ModelForm):

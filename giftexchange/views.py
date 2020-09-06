@@ -7,6 +7,7 @@ from django.http import HttpResponse, Http404
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.views import View
 
 from giftexchange.forms import (
 	ParticipantDetailsForm, 
@@ -63,283 +64,360 @@ def logout_handler(request):
     logout(request)
     return redirect(reverse('login'))
 
+class BaseView(View):
+	def _get_participant_and_exchange(self, appuser, giftexchange_id):
+		giftexchange = None
+		participant_details = None
 
-def _get_participant_and_exchange(appuser, giftexchange_id):
-	giftexchange = None
-	particpant_details = None
-
-	giftexchange = GiftExchange.objects.filter(pk=giftexchange_id).first()
-	
-	if giftexchange:
-		particpant_details = appuser.exchange_participant(giftexchange)
-	return giftexchange, particpant_details
+		giftexchange = GiftExchange.objects.filter(pk=giftexchange_id).first()
+		
+		if giftexchange:
+			participant_details = appuser.exchange_participant(giftexchange)
+		return giftexchange, participant_details
 
 
-@login_required(login_url='/admin/')
-def dashboard(request):
-	template = loader.get_template('giftexchange/dashboard.html')
-	today = date.today()
-	appuser = AppUser.get(djangouser=request.user)
-	current_participation = Participant.objects.filter(appuser=appuser)
-	current_exchanges = []
-	past_exchanges = []
-	for cp in current_participation:
-		if cp.giftexchange.date >= today:
-			current_exchanges.append(cp.giftexchange)
+class AuthenticatedView(BaseView):
+	def setup(self, request, *args, **kwargs):
+		super(AuthenticatedView, self).setup(request, *args, **kwargs)
+		if not self.request.user.is_authenticated:
+			raise Http404('Login Required')
+
+		self.giftexchange = None
+		self.is_admin = False
+		self.djangouser = request.user
+		self.appuser = AppUser.get(djangouser=self.djangouser)
+
+		if 'giftexchange_id' in kwargs:
+			self.giftexchange = GiftExchange.objects.filter(pk=kwargs['giftexchange_id']).first()
+			self.giftexchange_id = self.giftexchange.pk
+
+
+class GiftExchangeView(AuthenticatedView):
+	def setup(self, request, *args, **kwargs):
+		super(GiftExchangeView, self).setup(request, *args, **kwargs)
+
+		if not self.giftexchange:
+			return Http404('Gift exchange not found')
 		else:
-			past_exchanges.append(cp.giftexchange)
+			self.participant_details = self.appuser.exchange_participant(self.giftexchange)
 
-	context = {
-		'breadcrumbs': [],
-		'current_exchanges': current_exchanges,
-		'appuser': appuser,
-		'past_exchanges': past_exchanges,
-	}
+		if not self.participant_details:
+			return Http404('User not a participant on this exchange')
 
-	return HttpResponse(template.render(context, request))
+		if self.giftexchange:
+			self.is_admin = self.appuser in self.giftexchange.admin_appuser.all()
 
 
-@login_required(login_url='/admin/')
-def giftexchange_detail(request, giftexchange_id, appuser_id=None):
-	admin_user = None
-	if not appuser_id:
-		appuser = AppUser.get(djangouser=request.user)
-		giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-		breadcrumbs = [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, None)
-		]
-	else:
-		admin_user = AppUser.get(djangouser=request.user)
-		if not admin_user.is_giftexchange_admin(giftexchange_id):
-			return Http404('User not an admin on this exchange')
-		appuser = AppUser.objects.get(pk=appuser_id)
-		giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-		breadcrumbs = [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id})),
-			('Manage Assignments', reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': giftexchange_id})),
-			('{} {}'.format(appuser.djangouser.first_name, appuser.djangouser.last_name), None)
-		]
+class Dashboard(AuthenticatedView):
+	def get(self, request, *args, **kwargs):
+		template = loader.get_template('giftexchange/dashboard.html')
+		today = date.today()
+		current_participation = Participant.objects.filter(appuser=self.appuser)
+		current_exchanges = []
+		past_exchanges = []
+		for cp in current_participation:
+			if cp.giftexchange.date >= today:
+				current_exchanges.append(cp.giftexchange)
+			else:
+				past_exchanges.append(cp.giftexchange)
 
-	assignment_details = None
-	if giftexchange.assignments_locked:
-		assignment_details = giftexchange.get_assignment(appuser)
+		context = {
+			'breadcrumbs': [],
+			'current_exchanges': current_exchanges,
+			'appuser': self.appuser,
+			'past_exchanges': past_exchanges,
+		}
 
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	
-	template = loader.get_template('giftexchange/giftexchange_detail.html')
-	context = {
-		'breadcrumbs': breadcrumbs,
-		'admin_user': admin_user,
-		'appuser': appuser,
-		'particpant_details': particpant_details,
-		'assignment_details': assignment_details,
-		'giftexchange': giftexchange
-	}
-	return HttpResponse(template.render(context, request))
+		return HttpResponse(template.render(context, request))
 
 
-@login_required(login_url='/admin/')
-def giftexchange_detail_edit(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
+class CreateGiftExchange(AuthenticatedView):
+	def setup(self, request, *args, **kwargs):
+		super(CreateGiftExchange, self).setup(request, *args, **kwargs)
+		self.context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				('Create A Gift Exchange', None)
+			],
+			'form': None,
+		}
+		self.template = loader.get_template('giftexchange/generic_form.html')
 
-	template = loader.get_template('giftexchange/generic_form.html')
-
-	if request.POST:
-		form = ParticipantDetailsForm(request.POST)
-		if form.is_valid():
-			particpant_details.update(
-				likes=request.POST['likes'],
-				dislikes=request.POST['dislikes'],
-				allergies_sensitivities=request.POST['allergies_sensitivities'],
-			)
-			return redirect(reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id}))
-	else:
-		form = ParticipantDetailsForm(instance=particpant_details)
-
-	context = {
-		'breadcrumbs': [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Edit My Details', None)
-		],
-		'form': form,
-	}
-	return HttpResponse(template.render(context, request))
-
-
-@login_required(login_url='/admin/')
-def giftexchange_manage_dashboard(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-
-	template = loader.get_template('giftexchange/dashboard_manage.html')
-	context = {
-		'breadcrumbs': [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Admin', None)
-		],
-		'giftexchange': giftexchange
-	}
-	return HttpResponse(template.render(context, request))
-
-
-@login_required(login_url='/admin/')
-def giftexchange_manage_edit_details(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-
-	template = loader.get_template('giftexchange/generic_form.html')
-
-	if request.POST:
-		form = GiftExchangeDetailsForm(request.POST)
-		if form.is_valid():
-			giftexchange.update(
-				description=request.POST['description'],
-				spending_limit=request.POST['spending_limit'],
-				location=request.POST['location'],
-				date=request.POST['date'],
-			)
-			return redirect(reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id}))
-	else:
-		form = GiftExchangeDetailsForm(instance=giftexchange)
-
-	context = {
-		'breadcrumbs': [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Admin', reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Edit', None)
-		],
-		'form': form,
-	}
-	return HttpResponse(template.render(context, request))
-
-
-@login_required(login_url='/admin/')
-def giftexchange_create_new(request):
-	appuser = AppUser.get(djangouser=request.user)
-
-	template = loader.get_template('giftexchange/generic_form.html')
-
-	if request.POST:
+	def post(self, request, *args, **kwargs):
 		form = GiftExchangeCreateForm(request.POST)
 		if form.is_valid():
-			giftexchange = GiftExchange.create(
+			GiftExchange.create(
 				title=request.POST['title'],
 				description=request.POST['description'],
 				spending_limit=request.POST['spending_limit'],
 				location=request.POST['location'],
 				date=request.POST['date'],
-				appuser=appuser
+				appuser=self.appuser
 			)
 			return redirect(reverse('dashboard'))
-	else:
-		form = GiftExchangeCreateForm()
+		else:
+			self.context['form'] = form
+			return HttpResponse(self.template.render(self.context, request))
 
-	context = {
-		'breadcrumbs': [
-			('dashboard', reverse('dashboard')),
-			('Create A Gift Exchange', None)
-		],
-		'form': form,
-	}
-	return HttpResponse(template.render(context, request))
+	def get(self, request, *args, **kwargs):
+		self.context['form'] = GiftExchangeCreateForm()
+		return HttpResponse(self.template.render(self.context, request))
 
 
-@login_required(login_url='/admin/')
-def giftexchange_manage_assignments(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
+class GiftExchangeDetail(GiftExchangeView):
+	def get(self, request, *args, **kwargs):
+		if not kwargs.get('appuser_id'):
+			appuser = AppUser.get(djangouser=request.user)
+			giftexchange, participant_details = self._get_participant_and_exchange(appuser, self.giftexchange_id)
+			breadcrumbs = [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, None)
+			]
+		else:
+			if not self.is_admin:
+				return Http404('User not an admin on this exchange')
+
+			appuser = AppUser.objects.get(pk=kwargs.get('appuser_id'))
+			giftexchange, participant_details = self._get_participant_and_exchange(appuser, self.giftexchange_id)
+			breadcrumbs = [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Assignments', reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('{} {}'.format(appuser.djangouser.first_name, appuser.djangouser.last_name), None)
+			]
+
+		assignment_details = None
+		if self.giftexchange.assignments_locked:
+			assignment_details = giftexchange.get_assignment(appuser)
+
+		
+		template = loader.get_template('giftexchange/giftexchange_detail.html')
+		context = {
+			'breadcrumbs': breadcrumbs,
+			'admin_user': self.is_admin,
+			'appuser': appuser,
+			'participant_details': participant_details,
+			'assignment_details': assignment_details,
+			'giftexchange': giftexchange
+		}
+		return HttpResponse(template.render(context, request))
+
+
+class GiftExchangeDetailEdit(GiftExchangeView):
+	def setup(self, request, *args, **kwargs):
+		super(GiftExchangeDetailEdit, self).setup(request, *args, **kwargs)
+		self.template = loader.get_template('giftexchange/generic_form.html')
+		self.context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Edit My Details', None)
+			],
+			'form': None,
+		}
+
+	def post(self, request, *args, **kwargs):
+		form = ParticipantDetailsForm(request.POST)
+		if form.is_valid():
+			self.participant_details.update(
+				likes=request.POST['likes'],
+				dislikes=request.POST['dislikes'],
+				allergies_sensitivities=request.POST['allergies_sensitivities'],
+			)
+			return redirect(reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id}))
+		else:
+			form = ParticipantDetailsForm(instance=self.participant_details)
+			self.context['form'] = form
+			return HttpResponse(self.template.render(self.context, request))
+
+	def get(self, request, *args, **kwargs):
+		form = ParticipantDetailsForm(instance=self.participant_details)
+		self.context['form'] = form
+		return HttpResponse(self.template.render(self.context, request))
+
+
+class GiftExchangeAdminView(AuthenticatedView):
+
+	def setup(self, request, *args, **kwargs):
+		super(GiftExchangeAdminView, self).setup(request, *args, **kwargs)
+		self.giftexchange_id = kwargs['giftexchange_id']
+		self.appuser = AppUser.get(djangouser=request.user)
+		self.giftexchange, self.participant_details = self._get_participant_and_exchange(self.appuser, self.giftexchange_id)
 	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-
-	template = loader.get_template('giftexchange/manage_assignments.html')
-	context = {
-		'breadcrumbs': [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id})),
-			('Manage Assignments', None)
-		],
-		'giftexchange': giftexchange,
-		'assignments': giftexchange.ordered_assignments
-	}
-	return HttpResponse(template.render(context, request))
+		if not self.giftexchange:
+			raise Http404('Gift exchange with id {} not found'.format(self.giftexchange_id))
+		if not self.participant_details:
+			raise Http404('User not a participant on this exchange')
+		if not self.appuser in self.giftexchange.admin_appuser.all():
+			raise Http404('User not an admin on this exchange')
 
 
-@login_required(login_url='/admin/')
-def giftexchange_manage_participants(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-
-	participants = giftexchange.participant_set.all()
-
-	template = loader.get_template('giftexchange/manage_participants.html')
-	context = {
-		'breadcrumbs': [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id})),
-			('Manage Participants', None)
-		],
-		'giftexchange': giftexchange,
-		'participants': participants,
-	}
-	return HttpResponse(template.render(context, request))
+class GiftExchangeAdminDetail(GiftExchangeAdminView):
+	def get(self, request, *args, **kwargs):
+		template = loader.get_template('giftexchange/dashboard_manage.html')
+		context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', None)
+			],
+			'giftexchange': self.giftexchange
+		}
+		return HttpResponse(template.render(context, request))
 
 
-@login_required(login_url='/admin/')
-def giftexchange_upload_participants(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
+class GiftExchangeEdit(GiftExchangeAdminView):
+	def setup(self, request, *args, **kwargs):
+		super(GiftExchangeEdit, self).setup(request, *args, **kwargs)
+		self.return_url = reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})
+		self.context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Edit', None)
+			],
+			'form': None,
+		}
+		self.template = loader.get_template('giftexchange/generic_form.html')
 
-	template = loader.get_template('giftexchange/participant_upload.html')
-	if request.POST:
+	def post(self, request, *args, **kwargs):
+		form = GiftExchangeDetailsForm(request.POST)
+		if form.is_valid():
+			self.giftexchange.update(
+				description=request.POST['description'],
+				spending_limit=request.POST['spending_limit'],
+				location=request.POST['location'],
+				date=request.POST['date'],
+			)
+			messages.success(request, 'Gift exchange details updated')
+			return redirect(self.return_url)
+		else:
+			self.context['form'] = form
+			return HttpResponse(self.template.render(self.context, request))
+
+	def get(self, request, *args, **kwargs):
+		self.context['form'] = GiftExchangeDetailsForm(instance=self.giftexchange)
+		return HttpResponse(self.template.render(self.context, request))
+
+
+class ViewAssignments(GiftExchangeAdminView):
+	def get(self, request, *args, **kwargs):
+		template = loader.get_template('giftexchange/manage_assignments.html')
+		context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Assignments', None)
+			],
+			'giftexchange': self.giftexchange,
+			'assignments': self.giftexchange.ordered_assignments
+		}
+		return HttpResponse(template.render(context, request))
+
+
+class SetAssigments(GiftExchangeAdminView):
+	def get(self, request, *args, **kwargs):
+		self.giftexchange.generate_assignemnts()
+		return redirect(reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id}))
+
+
+class ToggleAssignmentLock(GiftExchangeAdminView):
+	def get(self, request, *args, **kwargs):
+		if self.giftexchange.assignments_locked:
+			self.giftexchange.unlock()
+		else:
+			self.giftexchange.lock()
+		return redirect(reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id}))
+
+
+class ParticipantsList(GiftExchangeAdminView):
+	def get(self, request, *args, **kwargs):
+		participants = self.giftexchange.participant_set.all()
+
+		template = loader.get_template('giftexchange/manage_participants.html')
+		context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Participants', None)
+			],
+			'giftexchange': self.giftexchange,
+			'participants': participants,
+		}
+		return HttpResponse(template.render(context, request))
+
+
+class ParticipantAdminAction(GiftExchangeAdminView):
+	def setup(self, request, *args, **kwargs):
+		super(ParticipantAdminAction, self).setup(request, *args, **kwargs)
+		self.target_participant = Participant.objects.get(pk=kwargs['participant_id'])
+		self.return_url = reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})
+
+
+class SetParticipantAdmin(ParticipantAdminAction):
+	def post(self, request, *args, **kwargs):
+		self.giftexchange.admin_appuser.add(self.target_participant.appuser)
+		self.giftexchange.save()
+		messages.success(request, 'Participant added as admin')
+		return redirect(self.return_url)
+
+	def get(self, request, *args, **kwargs):		
+		confirm_message = 'Add {} {} as an amdin of "{}"?'.format(
+			self.target_participant.appuser.djangouser.first_name,
+			self.target_participant.appuser.djangouser.last_name,
+			self.giftexchange.title
+		)
+		template = loader.get_template('giftexchange/confirm_action.html')
+
+		context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Participants', self.return_url),
+				('Remove Participant', None)
+			],
+			'confirm_message': confirm_message,
+			'return_url': self.return_url,
+		}
+		return HttpResponse(template.render(context, request))
+
+
+class UnsetParticipantAdmin(ParticipantAdminAction):
+	def post(self, request, *args, **kwargs):
+		self.giftexchange.admin_appuser.remove(self.target_participant.appuser)
+		self.giftexchange.save()
+		messages.success(request, 'Participant removed as admin')
+		return redirect(self.return_url)
+
+	def get(self, request, *args, **kwargs):		
+		confirm_message = 'Remove {} {} as an admin of "{}"?'.format(
+			self.target_participant.appuser.djangouser.first_name,
+			self.target_participant.appuser.djangouser.last_name,
+			self.giftexchange.title
+		)
+		template = loader.get_template('giftexchange/confirm_action.html')
+
+		context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Participants', self.return_url),
+				('Remove Participant', None)
+			],
+			'confirm_message': confirm_message,
+			'return_url': self.return_url,
+		}
+		return HttpResponse(template.render(context, request))
+
+
+class ParticipantUpload(GiftExchangeAdminView):
+	def post(self, request, *args, **kwargs):
 		error = False
 		filehandle = request.FILES['file']
 		if filehandle.multiple_chunks():
@@ -350,177 +428,51 @@ def giftexchange_upload_participants(request, giftexchange_id):
 			lines = [line.decode("utf-8") for line in filehandle.readlines()]
 			parsed_participants = csv_lines_to_dict(expected_header, lines)
 			appusers = save_parsed_participants_as_appusers(parsed_participants)
-			participants, created = giftexchange.add_participants(appusers)
+			participants, created = self.giftexchange.add_participants(appusers)
 			messages.success(request, 'Added {} participants to Gift Exchange'.format(created))
-			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': giftexchange.pk}))
-	else:
+			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
+		# just redirect to the GET if it failed
+		return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
+
+	def get(self, request, *args, **kwargs):
 		form = FileUploadForm()
-	context = {
-		'breadcrumbs': [
-			('dashboard', reverse('dashboard')),
-			(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-			('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id})),
-			('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': giftexchange_id})),
-			('Upload Participants', None)
-		],
-		'form': form
-	}
-	return HttpResponse(template.render(context, request))
-
-
-
-@login_required(login_url='/admin/')
-def giftexchange_remove_participant(request, giftexchange_id, participant_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-
-	target_participant = Participant.objects.get(pk=participant_id)
-	return_url = reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': giftexchange_id})
-
-	confirm_message = 'Are you sure you want to remove {} {} as a participant of "{}"?'.format(
-		target_participant.appuser.djangouser.first_name,
-		target_participant.appuser.djangouser.last_name,
-		giftexchange.title
-	)
-	template = loader.get_template('giftexchange/confirm_action.html')
-	if request.POST:
-		target_participant.delete()
-		messages.success(request, 'Participant removed')
-		return redirect(return_url)
-	else:
+		template = loader.get_template('giftexchange/participant_upload.html')
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id})),
-				('Manage Participants', return_url),
-				('Remove Participant', None)
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Upload Participants', None)
 			],
-			'confirm_message': confirm_message,
-			'return_url': return_url,
+			'form': form
 		}
-	return HttpResponse(template.render(context, request))
+		return HttpResponse(template.render(context, request))
 
 
-@login_required(login_url='/admin/')
-def giftexchange_add_participant_admin(request, giftexchange_id, participant_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
+class RemoveParticipant(ParticipantAdminAction):
+	def post(self, request, *args, **kwargs):
+		self.target_participant.delete()
+		messages.success(request, 'Participant removed from gift exchange')
+		return redirect(self.return_url)
 
-	target_participant = Participant.objects.get(pk=participant_id)
-	return_url = reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': giftexchange_id})
-
-	confirm_message = 'Add {} {} as an amdin of "{}"?'.format(
-		target_participant.appuser.djangouser.first_name,
-		target_participant.appuser.djangouser.last_name,
-		giftexchange.title
-	)
-	template = loader.get_template('giftexchange/confirm_action.html')
-	if request.POST:
-		giftexchange.admin_appuser.add(target_participant.appuser)
-		giftexchange.save()
-		messages.success(request, 'Participant added as admin')
-		return redirect(return_url)
-	else:
+	def get(self, request, *args, **kwargs):	
+		template = loader.get_template('giftexchange/confirm_action.html')
+		confirm_message = 'Remove {} {} from gift exchange "{}"?'.format(
+			self.target_participant.appuser.djangouser.first_name,
+			self.target_participant.appuser.djangouser.last_name,
+			self.giftexchange.title
+		)
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id})),
-				('Manage Participants', return_url),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Participants', self.return_url),
 				('Remove Participant', None)
 			],
 			'confirm_message': confirm_message,
-			'return_url': return_url,
+			'return_url': self.return_url,
 		}
-	return HttpResponse(template.render(context, request))
-
-@login_required(login_url='/admin/')
-def giftexchange_remove_participant_admin(request, giftexchange_id, participant_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-
-	target_participant = Participant.objects.get(pk=participant_id)
-	return_url = reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': giftexchange_id})
-
-	confirm_message = 'Remove {} {} as an amdin of "{}"?'.format(
-		target_participant.appuser.djangouser.first_name,
-		target_participant.appuser.djangouser.last_name,
-		giftexchange.title
-	)
-	template = loader.get_template('giftexchange/confirm_action.html')
-	if request.POST:
-		giftexchange.admin_appuser.remove(target_participant.appuser)
-		giftexchange.save()
-		messages.success(request, 'Participant removed as admin')
-		return redirect(return_url)
-	else:
-		context = {
-			'breadcrumbs': [
-				('dashboard', reverse('dashboard')),
-				(giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': giftexchange_id})),
-				('Manage Participants', return_url),
-				('Remove Participant', None)
-			],
-			'confirm_message': confirm_message,
-			'return_url': return_url,
-		}
-	return HttpResponse(template.render(context, request))
-
-
-@login_required(login_url='/admin/')
-def giftexchange_set_assignments(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-
-	giftexchange.generate_assignemnts()
-	return redirect(reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': giftexchange_id}))
-
-
-@login_required(login_url='/admin/')
-def giftexchange_toggle_assignment_lock(request, giftexchange_id):
-	appuser = AppUser.get(djangouser=request.user)
-	giftexchange, particpant_details = _get_participant_and_exchange(appuser, giftexchange_id)
-	
-	if not giftexchange:
-		return Http404('Exchange not found')
-	if not particpant_details:
-		return Http404('User not a participant on this exchange')
-	if not appuser in giftexchange.admin_appuser.all():
-		return Http404('User not an admin on this exchange')
-	if giftexchange.assignments_locked:
-		giftexchange.unlock()
-	else:
-		giftexchange.lock()
-	return redirect(reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': giftexchange_id}))
-
+		return HttpResponse(template.render(context, request))
 

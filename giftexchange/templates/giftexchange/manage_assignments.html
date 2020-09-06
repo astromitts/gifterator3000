@@ -10,6 +10,7 @@
 				<a class="float-right" href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Lock Assignments</button></a>
 			{% endif%}
 		{% else %}
+			<a class="float-left"  href="{% url 'giftexchange_set_assignments' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Send Assignment Emails</button></a>
 			<a class="float-right" href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Unlock Assignments</button></a>
 		{% endif %}
 		</div>

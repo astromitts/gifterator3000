@@ -2,7 +2,6 @@
 
 {% block page_content %}
 	<h2>{{giftexchange.title}}{% if appuser in giftexchange.admin_appuser.all %}
-	<a href="{% url 'giftexchange_manage_dashboard' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Edit</button></a>
 	<p>{{giftexchange.description}}</p>
 	
 	{% endif %}</h2>
@@ -17,15 +16,15 @@
 	  		<table class="table">
 	  			<tr>
 	  				<td>Likes: </td>
-	  				<td>{{particpant_details.likes}}</td>
+	  				<td>{{participant_details.likes}}</td>
 	  			</tr>
 	  			<tr>
 	  				<td>Dislikes: </td>
-	  				<td>{{particpant_details.dislikes}}</td>
+	  				<td>{{participant_details.dislikes}}</td>
 	  			</tr>
 	  			<tr>
 	  				<td>Allergies & sensitivities: </td>
-	  				<td>{{particpant_details.allergies_sensitivities}}</td>
+	  				<td>{{participant_details.allergies_sensitivities}}</td>
 	  			</tr>
 	  		</table>
 	  </div>

@@ -12,9 +12,9 @@
 	<link rel="shortcut icon" href="{% static 'images/favicon.ico' %}" />
 	<meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' name='viewport' />
 	<link href="{% static 'bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
-	{% comment %}
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-	{% endcomment %}
+	<link href= 'https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/ui-lightness/jquery-ui.css' rel='stylesheet'> 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js" > </script> 
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" > </script>
 	<script src="{% static 'bootstrap/js/bootstrap.min.js' %}"></script>
 	{% block extra_head %}{% endblock %}
 </head>
@@ -23,8 +23,8 @@
 	{% block header_nav %}
 		<nav class="navbar navbar-expand-sm bg-light navbar-light">
 			<div class="container">
-				<a class="navbar-brand" href="{% url 'dashboard' %}">
-					<img src="{% static '' %}" width="250px"/>
+				<a class="navbar-brand float-left" href="{% url 'dashboard' %}">
+					<img class="d-inline-block align-top" src="{% static 'site-images/gifterator-icon.png' %}" width="225px"/>
 				</a>
 				<ul class="navbar-nav">
 					{% if request.user.is_authenticated %}
@@ -43,18 +43,21 @@
 			</div>
 		</nav>
 	{% endblock %}
-	<div class="container">
-		<div id="breadcrumbs">
-			{% for title, link in breadcrumbs %}
-				{% if link %}
-					<a href="{{link}}">{{title}}</a>
-				{% else %}
-					{{title}}
-				{% endif %}
-				{% if not forloop.last %} > {% endif %}
-			{% endfor %}
+	{% if breadcrumbs %}
+		<div class="container">
+			<nav aria-label="breadcrumb">
+			  <ol class="breadcrumb">
+			  	{% for title, link in breadcrumbs %}
+					{% if link %}
+						<li class="breadcrumb-item"><a href="{{link}}">{{title}}</a></li>
+					{% else %}
+						<li class="breadcrumb-item active">{{title}}</li>
+					{% endif %}
+				{% endfor %}
+			  </ol>
+			</nav>
 		</div>
-	</div>
+	{% endif %}
 	<div class="container">
 		<div id="main-content">
 		{% block messages %}
@@ -70,7 +73,7 @@
 				</div>
 				{% endif %}
 			{% endblock %}
-			{% block page_content %}{% endblock %}
+				{% block page_content %}{% endblock %}
 		</div>
 	</div>
 	{% block extra_js %}{% endblock %}

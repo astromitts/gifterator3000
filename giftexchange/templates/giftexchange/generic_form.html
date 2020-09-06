@@ -15,3 +15,17 @@
 	</div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+	$(document).ready(function(){
+		$(function() {
+			$( ".datepicker" ).datepicker({
+				changeMonth: true,
+				changeYear: true,
+				dateFormat: 'yy-mm-dd',
+			});
+		});
+	});
+ </script>
+ {% endblock %}
