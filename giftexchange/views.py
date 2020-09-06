@@ -15,6 +15,8 @@ from giftexchange.forms import (
 	LoginForm, 
 	GiftExchangeCreateForm,
 	FileUploadForm,
+	ProfileForm,
+	PasswordResetForm,
 )
 from giftexchange.models import Participant, AppUser, GiftExchange
 from giftexchange.utils import csv_lines_to_dict, save_parsed_participants_as_appusers
@@ -22,15 +24,20 @@ from giftexchange.utils import csv_lines_to_dict, save_parsed_participants_as_ap
 import csv
 
 
-def login_handler(request):
-	if request.user.is_authenticated:
-		messages.info(request, 'You are already logged in')
-		return redirect(reverse('dashboard'))
+class LoginHandler(View):
+	def setup(self, request, *args, **kwargs):
+		super(LoginHandler, self).setup(request, *args, **kwargs)
+		self.template = loader.get_template('giftexchange/generic_form.html')
+		self.context = {}
 
-	template = loader.get_template('giftexchange/generic_form.html')
-	if request.user.is_authenticated:
-		return redirect(reverse('dashboard'))
-	if request.POST:
+	def get(self, request, *args, **kwargs):
+		if request.user.is_authenticated:
+			messages.info(request, 'You are already logged in')
+			return redirect(reverse('dashboard'))
+		self.context['form'] = LoginForm()
+		return HttpResponse(self.template.render(self.context, request))
+
+	def post(self, request, *args, **kwargs):
 		data = request.POST.copy()
 		form = LoginForm(data)
 		if form.is_valid():
@@ -44,25 +51,22 @@ def login_handler(request):
 						'form': form
 					}
 					messages.error(request, 'Invalid password.')
-					return HttpResponse(template.render(context, request))
+					return HttpResponse(self.template.render(context, request))
 			except Exception as exc:
 				context = {
 					'form': form
 				}
 				messages.error(request, 'Invalid email.')
-				return HttpResponse(template.render(context, request))
-
-	else:
-		form = LoginForm()
-		context = {
-			'form': form
-		}
-	return HttpResponse(template.render(context, request))
+				return HttpResponse(self.template.render(context, request))
+		else:
+			self.context['form'] = form
+			return HttpResponse(self.template.render(self.context, request))
 
 
 def logout_handler(request):
     logout(request)
     return redirect(reverse('login'))
+
 
 class BaseView(View):
 	""" Base view class to hold commonly required utils
@@ -95,6 +99,80 @@ class AuthenticatedView(BaseView):
 		if 'giftexchange_id' in kwargs:
 			self.giftexchange = GiftExchange.objects.filter(pk=kwargs['giftexchange_id']).first()
 			self.giftexchange_id = self.giftexchange.pk
+
+
+class UpdatePassword(AuthenticatedView):
+	def setup(self, request, *args, **kwargs):
+		super(UpdatePassword, self).setup(request, *args, **kwargs)
+		self.template = loader.get_template('giftexchange/generic_form.html')
+		self.context = {}
+
+	def get(self, request, *args, **kwargs):
+		self.context['form'] = PasswordResetForm()
+		return HttpResponse(self.template.render(self.context, request))
+
+	def post(self, request, *args, **kwargs):
+		data = request.POST.copy()
+		form = PasswordResetForm(data)
+		if form.is_valid():
+			if request.user.check_password(data['current_password']):
+				if request.POST['new_password'] == request.POST['confirm_new_password']:
+					self.djangouser.set_password(request.POST['new_password'])
+					self.djangouser.save()
+					self.appuser.needs_password_reset = False
+					self.appuser.save()
+					messages.success(request, 'Password updated, please log in again')
+					logout(request)
+					return redirect(reverse('login'))
+				else:
+					messages.error(request, 'New password fields must match')
+			else:
+				messages.error(request, 'Current password given is not correct')
+		self.context['form'] = form
+		return HttpResponse(self.template.render(self.context, request))
+
+
+
+class ManageProfile(AuthenticatedView):
+	def setup(self, request, *args, **kwargs):
+		super(ManageProfile, self).setup(request, *args, **kwargs)
+		self.template = loader.get_template('giftexchange/profile.html')
+		self.context = {
+			'breadcrumbs': [
+				('Profile', None)
+			],
+			'fullwidth': True
+		}
+
+	def get(self, request, *args, **kwargs):
+		init = {
+			'first_name': self.djangouser.first_name,
+			'last_name': self.djangouser.last_name,
+			'email': self.djangouser.email,
+			'default_likes': self.appuser.default_likes,
+			'default_dislikes': self.appuser.default_dislikes,
+			'default_allergies_and_sensitivites': self.appuser.default_allergies_sensitivities,
+		}
+		self.context['form'] = ProfileForm(initial=init)
+		return HttpResponse(self.template.render(self.context, request))
+
+	def post(self, request, *args, **kwargs):
+		form = ProfileForm(request.POST)
+		if form.is_valid:
+			self.djangouser.email = request.POST['email']
+			self.djangouser.first_name = request.POST['first_name']
+			self.djangouser.last_name = request.POST['last_name']
+			self.djangouser.save()
+			self.appuser.default_likes = request.POST['default_likes']
+			self.appuser.default_dislikes = request.POST['default_dislikes']
+			self.appuser.default_allergies_sensitivities = request.POST['default_allergies_and_sensitivites']
+			self.appuser.save()
+
+			messages.success(request, 'Updated user profile information')
+			return redirect(reverse('profile'))
+		else:
+			self.context['form'] = form
+			return HttpResponse(self.template.render(self.context, request))
 
 
 class GiftExchangeView(AuthenticatedView):

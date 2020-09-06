@@ -5,6 +5,9 @@ from django.contrib.auth.models import User
 class AppUser(models.Model):
 	djangouser = models.OneToOneField(User, on_delete=models.CASCADE)
 	needs_password_reset = models.BooleanField(default=True)
+	default_likes = models.TextField(blank=True, null=True)
+	default_dislikes = models.TextField(blank=True, null=True)
+	default_allergies_sensitivities = models.TextField(blank=True, null=True)
 
 	def __str__(self):
 		return '{} {} ({})'.format(self.djangouser.first_name, self.djangouser.last_name, self.djangouser.email)
@@ -139,7 +142,10 @@ class GiftExchange(models.Model):
 		for appuser in appuser_list:
 			new_participant, created = Participant.get_or_create(
 				giftexchange=self,
-				appuser=appuser
+				appuser=appuser,
+				likes=appuser.default_likes,
+				dislikes=appuser.default_dislikes,
+				allergies_sensitivities=appuser.default_allergies_sensitivities
 			)
 			participants.append(new_participant)
 			if created:

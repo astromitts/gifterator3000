@@ -1,4 +1,4 @@
-from django.forms import Form, ModelForm, PasswordInput, FileField, DateInput
+from django.forms import Form, ModelForm, PasswordInput, FileField, DateInput, EmailField, CharField, Textarea
 from django.contrib.auth.models import User
 from giftexchange.models import Participant, GiftExchange
 
@@ -35,6 +35,21 @@ class LoginForm(ModelForm):
         widgets = {
             'password': PasswordInput(),
         }
+
+
+class ProfileForm(Form):
+	first_name = CharField()
+	last_name = CharField()
+	email = EmailField()
+	default_likes = CharField(widget=Textarea, required=False)
+	default_dislikes = CharField(widget=Textarea, required=False)
+	default_allergies_and_sensitivites = CharField(widget=Textarea, required=False)
+
+
+class PasswordResetForm(Form):
+	current_password = CharField(widget=PasswordInput())
+	new_password = CharField(widget=PasswordInput())
+	confirm_new_password = CharField(widget=PasswordInput())
 
 
 class FileUploadForm(Form):

@@ -2,7 +2,12 @@
 
 {% block page_content %}
 <div class="row">
-	<div class="{% if not fullwidth %}col-sm-3{% endif %} col">
+	<div class="col">
+		<a href="{% url 'update_password' %}"><button class="btn btn-primary">Change password</button></a>
+	</div>
+</div>
+<div class="row">
+	<div class="col">
 		<form class="form" method="POST" action="{{action}}">
 			{% csrf_token %}
 			<table class="table">
