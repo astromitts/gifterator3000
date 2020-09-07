@@ -8,6 +8,7 @@
 			<tr>
 				<th>Admin</th>
 				<th>Participant</th>
+				<th>Status</th>
 				<th></th>
 				<th></th>
 			</tr>
@@ -18,7 +19,12 @@
 							Y
 						{% endif %}
 					</td>
-					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=participant.appuser.pk %}">{{participant.appuser}}</a></td>
+					<td>
+						<a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=participant.appuser.pk %}">{{participant.appuser}}</a>
+					</td>
+					<td>
+						{{participant.status}}
+					</td>
 					<td>
 						<a href="{% url 'giftexchange_remove_participant' giftexchange_id=giftexchange.pk participant_id=participant.pk %}"><button class="btn btn-danger">Remove</button></a>
 					</td>

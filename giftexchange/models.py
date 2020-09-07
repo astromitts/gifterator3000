@@ -234,6 +234,15 @@ class GiftExchange(models.Model):
 class Participant(models.Model):
 	appuser = models.ForeignKey(AppUser, on_delete=models.CASCADE)
 	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
+	status = models.CharField(
+		max_length=10,
+		default='invited',
+		choices=[
+			('invited', 'invited'),
+			('declined', 'declined'),
+			('active', 'active'),
+		]
+	)
 	likes = models.TextField(blank=True, null=True)
 	dislikes = models.TextField(blank=True, null=True)
 	allergies_sensitivities = models.TextField(blank=True, null=True)

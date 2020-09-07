@@ -37,6 +37,8 @@ urlpatterns = [
     path('giftexchange/<int:giftexchange_id>/manage/assignments/set/', views.SetAssigments.as_view(), name='giftexchange_set_assignments'),
     path('giftexchange/<int:giftexchange_id>/manage/assignments/toggle-lock/', views.ToggleAssignmentLock.as_view(), name='giftexchange_toggle_assignment_lock'),
     path('giftexchange/<int:giftexchange_id>/', views.GiftExchangeDetail.as_view(), name='giftexchange_detail'),
+    path('giftexchange/<int:giftexchange_id>/accept/', views.AcceptGiftExchangeInvitation.as_view(), name='giftexchange_invitation_accept'),
+    path('giftexchange/<int:giftexchange_id>/decline/', views.DeclineGiftExchangeInvitation.as_view(), name='giftexchange_invitation_decline'),
     path('giftexchange/<int:giftexchange_id>/userdetails/<int:appuser_id>/', views.GiftExchangeDetail.as_view(), name='giftexchange_detail_appuser'),
     path('admin/', admin.site.urls),
 ]

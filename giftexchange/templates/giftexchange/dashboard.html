@@ -17,10 +17,25 @@
 			</div>
 		</div>
 	{% endfor %}
-	</div>
-	<div class="row">
-		<div class="col">
+
+		<div class="col-6">
 			<a href="{% url 'giftexchange_create_new' %}"><button class="btn btn-primary">+ Create</button></a>
 		</div>
+	</div>
+
+	<h2>Invitations</h2>
+	<div class="row">
+	{% for giftexchange in invitations %}
+		<div class="col-6">
+			<div class="card">
+			 	<div class="card-body">
+			 		<h5 class="card-title">{{giftexchange.title}}</h5>
+			 		<h6 class="card-subtitle mb-2 text-muted">{{giftexchange.location}}, {{giftexchange.date}}</h6>
+			 		<a href="{% url 'giftexchange_invitation_accept' giftexchange_id=giftexchange.pk %}" class="card-link">Accept</a>
+			 		<a href="{% url 'giftexchange_invitation_decline' giftexchange_id=giftexchange.pk %}" class="card-link">Decline</a>
+			 	</div>
+			</div>
+		</div>
+	{% endfor %}
 	</div>
 {% endblock %}

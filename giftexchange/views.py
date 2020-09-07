@@ -303,23 +303,50 @@ class Dashboard(AuthenticatedView):
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/dashboard.html')
 		today = date.today()
-		current_participation = Participant.objects.filter(appuser=self.appuser)
+		current_participation = Participant.objects.filter(appuser=self.appuser, status='active')
+		pending_participation = Participant.objects.filter(appuser=self.appuser, status='invited')
 		current_exchanges = []
-		past_exchanges = []
+		pending_exchanges = []
+
 		for cp in current_participation:
 			if cp.giftexchange.date >= today:
 				current_exchanges.append(cp.giftexchange)
-			else:
-				past_exchanges.append(cp.giftexchange)
+
+		for cp in pending_participation:
+			if cp.giftexchange.date >= today:
+				pending_exchanges.append(cp.giftexchange)
 
 		context = {
 			'breadcrumbs': [],
 			'current_exchanges': current_exchanges,
+			'invitations': pending_exchanges,
 			'appuser': self.appuser,
-			'past_exchanges': past_exchanges,
 		}
 
 		return HttpResponse(template.render(context, request))
+
+
+class AcceptGiftExchangeInvitation(AuthenticatedView):
+	def get(self, request, *args, **kwargs):
+		giftexchange, participant_details = self._get_participant_and_exchange(self.appuser, self.giftexchange_id)
+		participant_details.status = 'active'
+		participant_details.save()
+		participant_details.update(
+			likes=self.appuser.default_likes,
+			dislikes=self.appuser.default_dislikes,
+			allergies_sensitivities=self.appuser.default_allergies_sensitivities
+		)
+		messages.success(request, 'You have been added to "{}"'.format(self.giftexchange.title))
+		return redirect(reverse('dashboard'))
+
+
+class DeclineGiftExchangeInvitation(AuthenticatedView):
+	def get(self, request, *args, **kwargs):
+		giftexchange, participant_details = self._get_participant_and_exchange(appuser, self.giftexchange_id)
+		participant_details.status = 'declined'
+		participant_details.save()
+		messages.success('You have declined "{}"'.format(self.giftexchange.title))
+		return redirect(reverse('dashboard'))
 
 
 class CreateGiftExchange(AuthenticatedView):
