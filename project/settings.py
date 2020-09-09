@@ -27,6 +27,16 @@ SECRET_KEY = '&gf$lw036tuicvs5fc^f22)uqlh5n+y1ots2z_^2f&3f(5v%7r'
 DEBUG = True
 
 
+# Database
+# https://docs.djangoproject.com/en/3.1/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
 # Application definition
 
 INSTALLED_APPS = [
