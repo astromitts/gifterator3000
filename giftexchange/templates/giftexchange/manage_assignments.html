@@ -10,7 +10,7 @@
 				<a class="float-right" href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Lock Assignments</button></a>
 			{% endif%}
 		{% else %}
-			<a class="float-left"  href="{% url 'giftexchange_set_assignments' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Send Assignment Emails</button></a>
+			<a class="float-left"  href="{% url 'giftexchange_send_assignment_email_all' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Send All Emails</button></a>
 			<a class="float-right" href="{% url 'giftexchange_toggle_assignment_lock' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Unlock Assignments</button></a>
 		{% endif %}
 		</div>
@@ -23,6 +23,9 @@
 					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.giver.appuser.pk %}">{{assignment.giver.appuser}}</a></td>
 					<td>gives to</td>
 					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.reciever.appuser.pk %}">{{assignment.reciever.appuser}}</a></td>
+					{% if giftexchange.assignments_locked %}
+					<td><a href="{% url 'giftexchange_send_assignment_email' giftexchange_id=giftexchange.pk target_appuser_id=assignment.giver.appuser.pk %}"><button class="btn btn-primary btn-sm">{% if assignment.email_sent %}Re-send{%else%}Send{%endif%} Email</button></a></td>
+					{% endif %}
 				</tr>
 			{% endfor %}
 		</table>

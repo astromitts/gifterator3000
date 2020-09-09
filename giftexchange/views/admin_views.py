@@ -12,7 +12,7 @@ from giftexchange.forms import (
 	EmailForm,
 	FileUploadForm,
 )
-from giftexchange.models import AppInvitation, AppUser, Participant
+from giftexchange.models import AppInvitation, AppUser, Participant, ExchangeAssignment
 from giftexchange.utils import csv_lines_to_dict
 
 
@@ -363,4 +363,64 @@ class RemoveParticipant(ParticipantAdminAction):
 			'return_url': self.return_url,
 		}
 		return HttpResponse(template.render(context, request))
+
+
+class SendAssignmentEmail(GiftExchangeAdminView):
+	def _send_email_for_participant(self, target_participant):
+		
+		assignment = ExchangeAssignment.objects.get(
+			giver=target_participant,
+			giftexchange=self.giftexchange
+		)
+		assignment.send_assignment_email()
+
+	def setup(self, request, *args, **kwargs):
+		super(SendAssignmentEmail, self).setup(request, *args, **kwargs)
+		self.template = loader.get_template('giftexchange/confirm_action.html')
+		self.return_url = reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id})
+		if kwargs.get('target_appuser_id'):
+			self.target_appuser = AppUser.objects.get(pk=kwargs['target_appuser_id'])
+			confirm_message = 'Send assignment email to {} {}?'.format(
+				assignment.giver.appuser.djangouser.first_name,
+				assignment.giver.appuser.djangouser.last_name
+			)
+			self.send_all = False
+		else:
+			self.send_all = True
+			confirm_message = 'Send assignment emails to all participants?'
+
+		self.context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Assignments', self.return_url),
+				('Send Assignment Email', None)
+			],
+			'confirm_message': confirm_message,
+			'return_url': self.return_url,
+		}
+
+	def get(self, request, *args, **kwargs):
+		return HttpResponse(self.template.render(self.context, request))
+
+	def post(self, request, *args, **kwargs):
+
+		if self.send_all:
+			target_participants = Participant.objects.filter(giftexchange=self.giftexchange, status='active').all()
+			success_message = 'Assignment emails sent to active users.'
+		else:
+			target_participants = [Participant.objects.get(appuser=target_appuser, giftexchange=self.giftexchange), ]
+			success_message = 'Assignment email sent to {} {}'.format(
+				self.assignment.giver.appuser.djangouser.first_name,
+				self.assignment.giver.appuser.djangouser.last_name
+			)
+		for participant in target_participants:
+			self._send_email_for_participant(participant)
+
+		messages.success(
+			request, 
+			success_message
+		)
+		return redirect(self.return_url)
 

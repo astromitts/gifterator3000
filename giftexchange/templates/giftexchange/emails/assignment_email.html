@@ -1,0 +1,24 @@
+Hello!<br /><br />
+You have been given an assignment for "{{giftexchange.title}}"!<br /><br />
+Please get a gift for {{assignment.appuser.djangouser.first_name}} {{assignment.appuser.djangouser.last_name}} by {{giftexchange.date}} costing no more than ${{giftexchange.spending_limit}}.
+<br /><br />
+{{assignment.appuser.djangouser.first_name}} likes:<br />
+{% if assignment.likes %}
+	{{assignment.likes}}
+{% else %}
+	Nothing, apparently. Good luck!
+{% endif %}
+<br /><br />
+{{assignment.appuser.djangouser.first_name}} dislikes:<br />
+{% if assignment.dislikes %}
+	{{assignment.dislikes}}
+{% else %}
+	Nothing, apparently. Good luck!
+{% endif %}
+<br /><br />
+{% if assignment.allergies_sensitivities %}
+	{{assignment.appuser.djangouser.first_name}} reported the following allergies / sensitivities:<br />
+	{{assignment.allergies_sensitivities}}
+{% else %}
+	{{assignment.appuser.djangouser.first_name}} did not report any allergies / sensitivities
+{% endif %}

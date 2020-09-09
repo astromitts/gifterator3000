@@ -112,3 +112,6 @@ USE_TZ = True
 STATIC_URL = '/giftexchange/static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'giftexchange/static')
+
+FROM_NAME = 'Gifterator 3000'
+FROM_ADDRESS = 'gifterator3000@gmail.com'

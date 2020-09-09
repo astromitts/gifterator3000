@@ -2,8 +2,9 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.core.mail import EmailMessage
+from django.conf import settings
+from django.template.loader import render_to_string
 
-import uuid
 
 
 class AppUser(models.Model):
@@ -48,7 +49,7 @@ class AppUser(models.Model):
 			)
 			djangouser.save()
 			created = True
-		return djangouser, appuser_uuid, created
+		return djangouser, created
 
 	@classmethod
 	def get_or_create(cls, djangouser):
@@ -298,6 +299,7 @@ class ExchangeAssignment(models.Model):
 	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
 	giver = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='giftexchange_giver')
 	reciever = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name='giftexchange_reciever')
+	email_sent = models.BooleanField(default=False)
 
 	class Meta:
 		unique_together = ['giftexchange', 'giver', 'reciever']
@@ -305,14 +307,33 @@ class ExchangeAssignment(models.Model):
 	def __str__(self):
 		return '{} // {} -> {}'.format(self.giftexchange, self.giver, self.reciever)
 
+	def send_assignment_email(self):
+		subject = 'You have been given an assignment for "{}"'.format(self.giftexchange.title)
+		formatted_body = render_to_string(
+			'giftexchange/emails/assignment_email.html',
+			context={
+				'assignment': self.reciever,
+				'giftexchange': self.giftexchange
+			}
+		)
+		email = EmailMessage(
+		    subject,
+		    formatted_body,
+		    settings.FROM_ADDRESS,
+		    [self.giver.appuser.djangouser.email, ],
+		    reply_to=[settings.FROM_ADDRESS],
+		)
+		email.content_subtype = 'html'
+
+		email.send()
+		self.email_sent = True
+		self.save()
 
 class AppInvitation(models.Model):
 	inviter = models.ForeignKey(AppUser, related_name='inviter', on_delete=models.CASCADE)
 	invitee_email = models.EmailField()
 	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
 	status = models.CharField(max_length=10, default='pending', choices=[('sent', 'sent'), ('pending', 'pending'), ('accepted', 'accepted')])
-	from_name = 'Gifterator 3000'
-	from_address = 'gifterator3000@gmail.com'
 
 	def __str__(self):
 		return 'invite to {} from {}'.format(self.invitee_email, self.inviter)
@@ -362,9 +383,9 @@ class AppInvitation(models.Model):
 		email = EmailMessage(
 		    subject,
 		    formatted_body,
-		    self.from_address,
+		    settings.FROM_ADDRESS,
 		    [self.invitee_email, ],
-		    reply_to=[self.from_address],
+		    reply_to=[settings.FROM_ADDRESS],
 		)
 		email.content_subtype = 'html'
 
