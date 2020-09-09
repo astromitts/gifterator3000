@@ -34,7 +34,7 @@
 		<table class="table">
 			{% for assignment in assignments %}
 				<tr>
-					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.giver.appuser.pk %}">{{assignment.giver.appuser}}</a></td>
+					<td>{{assignment.giver.appuser}}</td>
 					<td>
 						gave {% if assignment.reciever.gift %}<b>{{assignment.reciever.gift}}</b>{% endif %} to
 					</td>
@@ -43,7 +43,7 @@
 							<a href="{% url 'giftexchange_set_gift_for_user' giftexchange_id=giftexchange.pk appuser_id=assignment.reciever.appuser.pk %}"><button class="btn btn-primary">Update</button></a>
 						</td>	
 					{% endif %}
-					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.reciever.appuser.pk %}">{{assignment.reciever.appuser}}</a></td>
+					<td>{{assignment.reciever.appuser}}</td>
 				</tr>
 			{% endfor %}
 		</table>
