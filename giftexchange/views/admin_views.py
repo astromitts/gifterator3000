@@ -210,14 +210,19 @@ class InviteNewUser(GiftExchangeAdminView):
 	def post(self, request, *args, **kwargs):
 		form = EmailForm(request.POST)
 		if form.is_valid():
-			invitation = AppInvitation.create(
+			invitation, created, reason = AppInvitation.get_or_create(
 				inviter=self.appuser,
 				invitee_email=request.POST['email'],
 				giftexchange=self.giftexchange
 			)
-			invitation.send_invitation_for_new_user()
-			messages.success(request, 'Invitation sent to {}'.format(request.POST['email']))
-			return redirect(self.return_url)
+			if created:
+				registration_url = self._full_url_reverse(request, 'register')
+				invitation.send_invitation_for_new_user(registration_url)
+				messages.success(request, 'Invitation sent to {}'.format(request.POST['email']))
+				return redirect(self.return_url)
+			else:
+				messages.error(request, reason)
+				return redirect(reverse('giftexchange_invite_new_user', kwargs={'giftexchange_id': self.giftexchange.id}))
 
 
 class SetParticipantAdmin(ParticipantAdminAction):
@@ -306,7 +311,8 @@ class ParticipantUpload(GiftExchangeAdminView):
 						added_count += 1
 				else:
 					invitation = AppInvitation.create(self.appuser, participant['email'], self.giftexchange)
-					invitation.send_invitation_for_new_user()
+					registration_url = self._full_url_reverse('register')
+					invitation.send_invitation_for_new_user(registration_url)
 					invited_count += 1
 			messages.success(request, 'Added {} participants to Gift Exchange and invited {} users'.format(added_count, invited_count))
 			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))

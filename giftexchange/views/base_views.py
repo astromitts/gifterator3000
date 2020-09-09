@@ -10,6 +10,12 @@ from django.urls import reverse
 from giftexchange.models import AppUser, GiftExchange, Participant
 
 
+class UnAuthenticatedView(View):
+	def get(self, request, *args, **kwargs):
+		if request.user.is_authenticated:
+			messages.warning(request, 'You are already logged in here.')
+			return redirect(reverse('dashboard'))
+
 
 class BaseView(View):
 	""" Base view class to hold commonly required utils
@@ -23,6 +29,9 @@ class BaseView(View):
 		if giftexchange:
 			participant_details = appuser.exchange_participant(giftexchange)
 		return giftexchange, participant_details
+
+	def _full_url_reverse(self, request, url_name):
+		return '{}://{}{}'.format(request.scheme, request.get_host(), reverse(url_name))
 
 
 class AuthenticatedView(BaseView):

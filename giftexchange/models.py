@@ -65,6 +65,13 @@ class AppUser(models.Model):
 	def get(cls, djangouser):
 		return cls.objects.get(djangouser=djangouser)
 
+	@classmethod
+	def get_by_email(cls, email):
+		djangouser_exists = User.objects.filter(email=email).exists()
+		if djangouser_exists:
+			return cls.objects.get(djangouser=djangouser)
+		return None
+
 
 
 class GiftExchange(models.Model):
@@ -307,33 +314,54 @@ class AppInvitation(models.Model):
 	from_name = 'Gifterator 3000'
 	from_address = 'gifterator3000@gmail.com'
 
+	def __str__(self):
+		return 'invite to {} from {}'.format(self.invitee_email, self.inviter)
+
 	@classmethod
-	def create(cls, inviter, invitee_email, giftexchange):
-		new = cls(
+	def get_or_create(cls, inviter, invitee_email, giftexchange):
+		reason = None
+		created = False
+		instance = None
+		appuser_exists = AppUser.get_by_email(invitee_email)
+		if appuser_exists:
+			reason = 'This user already has an account.'
+			return instance, created, reason
+
+		app_invite_exists = cls.objects.filter(
+			inviter=inviter,
+			invitee_email=invitee_email,
+			giftexchange=giftexchange,
+			status='sent'
+		).exists()
+		if app_invite_exists:
+			reason = 'An invitation has already been sent to this user'
+			return instance, created, reason
+
+		instance = cls(
 			inviter=inviter,
 			invitee_email=invitee_email,
 			giftexchange=giftexchange,
 		)
-		new.save()
-		return new
+		instance.save()
+		created = True
+		return instance, created, reason
 
-	def send_invitation_for_new_user(self):
+	def send_invitation_for_new_user(self, registration_link):
 		subject = "You have been invited you to join a gift exchange at Gifterator3000!"
 		body = """
 		Hello!<br /><br />
-		You have been invited to join "{}" by {} {}.<br />
-		<br />
-		To accept the invitation, <a href="{}">register here</a> using this email address.
+		You have been invited to join "{}" by {} {}. To accept the invitation, <a href="{}">register here</a> using this email address.
 		"""
 
+		formatted_body = body.format(
+	    	self.giftexchange.title, 
+	    	self.inviter.djangouser.first_name, 
+	    	self.inviter.djangouser.last_name, 
+	    	registration_link, 
+	    )
 		email = EmailMessage(
 		    subject,
-		    body.format(
-		    	self.giftexchange.title, 
-		    	self.inviter.djangouser.first_name, 
-		    	self.inviter.djangouser.last_name, 
-		    	reverse('login'), 
-		    ),
+		    formatted_body,
 		    self.from_address,
 		    [self.invitee_email, ],
 		    reply_to=[self.from_address],

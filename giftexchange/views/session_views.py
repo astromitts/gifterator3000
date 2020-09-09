@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.views import View
 
 
-from giftexchange.views.base_views import AuthenticatedView
+from giftexchange.views.base_views import AuthenticatedView, UnAuthenticatedView
 
 from giftexchange.forms import (
 	LoginForm,
@@ -20,7 +20,7 @@ from giftexchange.forms import (
 from giftexchange.models import AppUser, AppInvitation
 
 
-class RegistrationHandler(View):
+class RegistrationHandler(UnAuthenticatedView):
 	""" View for registering for the App
 	"""
 	def setup(self, request, *args, **kwargs):
@@ -29,6 +29,7 @@ class RegistrationHandler(View):
 		self.context = {'mediumwidth': True}
 
 	def get(self, request, *args, **kwargs):
+		super(RegistrationHandler, self).get(request, *args, **kwargs)
 		self.context['form'] = RegisterForm()
 		return HttpResponse(self.template.render(self.context, request))
 
@@ -72,7 +73,7 @@ class RegistrationHandler(View):
 
 
 
-class LoginHandler(View):
+class LoginHandler(UnAuthenticatedView):
 	""" View for Log in
 	"""
 	def setup(self, request, *args, **kwargs):
@@ -81,6 +82,7 @@ class LoginHandler(View):
 		self.context = {}
 
 	def get(self, request, *args, **kwargs):
+		super(LoginHandler, self).get(request, *args, **kwargs)
 		if request.user.is_authenticated:
 			messages.info(request, 'You are already logged in')
 			return redirect(reverse('dashboard'))
@@ -135,6 +137,7 @@ class ResetPassword(View):
 		self.context = {}
 
 	def get(self, request, *args, **kwargs):
+		super(ResetPassword, self).get(request, *args, **kwargs)
 		self.context['form'] = PasswordResetForm()
 		return HttpResponse(self.template.render(self.context, request))
 
@@ -169,6 +172,7 @@ class ChangePassword(AuthenticatedView):
 	""" Handler for a logged in user to change their password
 	"""
 	def setup(self, request, *args, **kwargs):
+		super(ChangePassword, self).get(request, *args, **kwargs)
 		super(ChangePassword, self).setup(request, *args, **kwargs)
 		self.template = loader.get_template('giftexchange/generic_form.html')
 		self.context = {}
