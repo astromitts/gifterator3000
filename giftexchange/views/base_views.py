@@ -1,10 +1,12 @@
 from urllib.parse import urlparse
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.contrib.auth.views import redirect_to_login
+from django.contrib import messages
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, resolve_url
 from django.views import View
 from django.urls import reverse
+
 
 
 from giftexchange.models import AppUser, GiftExchange, Participant
