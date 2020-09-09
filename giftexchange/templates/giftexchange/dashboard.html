@@ -23,19 +23,41 @@
 		</div>
 	</div>
 
-	<h2>Invitations</h2>
-	<div class="row">
-	{% for giftexchange in invitations %}
-		<div class="col-6">
-			<div class="card">
-			 	<div class="card-body">
-			 		<h5 class="card-title">{{giftexchange.title}}</h5>
-			 		<h6 class="card-subtitle mb-2 text-muted">{{giftexchange.location}}, {{giftexchange.date}}</h6>
-			 		<a href="{% url 'giftexchange_invitation_accept' giftexchange_id=giftexchange.pk %}" class="card-link">Accept</a>
-			 		<a href="{% url 'giftexchange_invitation_decline' giftexchange_id=giftexchange.pk %}" class="card-link">Decline</a>
-			 	</div>
+	{% if invitations %}
+		<h2>Invitations</h2>
+		<div class="row">
+		{% for giftexchange in invitations %}
+			<div class="col-6">
+				<div class="card">
+				 	<div class="card-body">
+				 		<h5 class="card-title">{{giftexchange.title}}</h5>
+				 		<h6 class="card-subtitle mb-2 text-muted">{{giftexchange.location}}, {{giftexchange.date}}</h6>
+				 		<a href="{% url 'giftexchange_invitation_accept' giftexchange_id=giftexchange.pk %}" class="card-link">Accept</a>
+				 		<a href="{% url 'giftexchange_invitation_decline' giftexchange_id=giftexchange.pk %}" class="card-link">Decline</a>
+				 	</div>
+				</div>
 			</div>
+		{% endfor %}
 		</div>
-	{% endfor %}
+	{% endif %}
+
+{% if past_exchanges %}
+	<div class="row"><h2>Past Gift Exchanges</h2></div>
+	<div class="row">
+		{% for giftexchange in past_exchanges %}
+			<div class="col-6">
+				<div class="card">
+				 	<div class="card-body">
+				 		<h5 class="card-title">{{giftexchange.title}}</h5>
+				 		<h6 class="card-subtitle mb-2 text-muted">{{giftexchange.location}}, {{giftexchange.date}}</h6>
+						<a href="{% url 'giftexchange_detail_review' giftexchange_id=giftexchange.pk %}" class="card-link">View Results</a>
+						{% if appuser in giftexchange.admin_appuser.all %}
+							<a href="{% url 'giftexchange_manage_dashboard' giftexchange_id=giftexchange.pk %}" class="card-link">Manage</a>
+						{% endif %}
+				 	</div>
+				</div>
+			</div>
+		{% endfor %}
 	</div>
+{% endif %}
 {% endblock %}

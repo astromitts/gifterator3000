@@ -1,0 +1,35 @@
+{% extends 'giftexchange/base.html' %}
+
+
+{% block page_content %}
+	{% include 'giftexchange/includes/assignment_warning.html' with giftexchange=giftexchange %}
+	{% include 'giftexchange/includes/generic_form.html' with form=form %}
+	{% if result_users %}
+		<div class="row">
+			<div class="col">
+				<form method='POST' action="{% url 'giftexchange_invite_from_search' giftexchange_id=giftexchange.pk %}">
+					{% csrf_token %}
+					<table class="table">
+						<tr>
+							<th>Select</th><th>User</th>
+						</tr>
+						{% for user in result_users %}
+							<tr>
+								<td><input type="checkbox" name="invite_user_{{user.email}}" id="invite_user_{{user.email}}" value="{{user.appuser.pk}}"/></td>
+								<td>
+									{{user.first_name}} {{user.last_name}} ({{user.email}})
+								</td>
+							</tr>
+						{% endfor %}
+					</table>
+					<input type="submit" class="btn btn-primary" value="Invite Participants" />
+				</form>
+			</div>
+		</div>
+	{% endif %}
+		<div class="row">
+			<div class="col">
+				Not finding who you are looking for? <a href="{% url 'giftexchange_invite_new_user' giftexchange_id=giftexchange.pk%}"><button class="btn btn-primary">Send them in an invitation!</button></a>
+			</div>
+		</div>
+{% endblock %}

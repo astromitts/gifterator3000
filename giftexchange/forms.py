@@ -1,4 +1,14 @@
-from django.forms import Form, ModelForm, PasswordInput, FileField, DateInput, EmailField, CharField, Textarea
+from django.forms import (
+	Form, 
+	ModelForm, 
+	PasswordInput, 
+	FileField, 
+	DateInput, 
+	EmailField, 
+	CharField, 
+	Textarea,
+	HiddenInput,
+)
 from django.contrib.auth.models import User
 from giftexchange.models import Participant, GiftExchange
 
@@ -37,6 +47,12 @@ class LoginForm(ModelForm):
         }
 
 
+class GiftForm(ModelForm):
+	class Meta:
+		model = Participant
+		fields = ['gift']
+
+
 class ProfileForm(Form):
 	first_name = CharField()
 	last_name = CharField()
@@ -59,5 +75,22 @@ class PasswordResetForm(Form):
 	confirm_new_password = CharField(widget=PasswordInput())
 
 
+class RegisterForm(Form):
+	email = EmailField()
+	first_name = CharField()
+	last_name = CharField()
+	password = CharField(widget=PasswordInput())
+	confirm_password = CharField(widget=PasswordInput())
+
+
 class FileUploadForm(Form):
 	file = FileField()
+
+
+class ParticipantSearchForm(Form):
+	email = CharField(required=False)
+	first_name = CharField(required=False)
+	last_name = CharField(required=False)
+
+class EmailForm(Form):
+	email = CharField(required=True)

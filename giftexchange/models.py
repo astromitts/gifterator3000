@@ -1,5 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.urls import reverse
+from django.core.mail import EmailMessage
+
+import uuid
 
 
 class AppUser(models.Model):
@@ -43,11 +47,8 @@ class AppUser(models.Model):
 				last_name=last_name
 			)
 			djangouser.save()
-			tmp_password = 'dive1766@{}'.format(email.split('@')[0])
-			djangouser.set_password(tmp_password)
-			djangouser.save()
 			created = True
-		return djangouser, created
+		return djangouser, appuser_uuid, created
 
 	@classmethod
 	def get_or_create(cls, djangouser):
@@ -78,6 +79,17 @@ class GiftExchange(models.Model):
 	def get_assignment(self, giver_appuser):
 		giver_participant = Participant.objects.get(giftexchange=self, appuser=giver_appuser)
 		return ExchangeAssignment.objects.filter(giftexchange=self, giver=giver_participant).first().reciever
+
+	def get_giver(self, reciever_appuser):
+		reciever_participant = Participant.objects.get(giftexchange=self, appuser=reciever_appuser)
+		return ExchangeAssignment.objects.filter(giftexchange=self, reciever=reciever_participant).first().giver
+
+	def get_participant(self, appuser):
+		return Participant.objects.get(giftexchange=self, appuser=appuser)
+
+	@property
+	def has_assignments(self):
+		return ExchangeAssignment.objects.filter(giftexchange=self).exists()
 
 	def lock(self):
 		self.assignments_locked = True
@@ -119,7 +131,7 @@ class GiftExchange(models.Model):
 		)
 		new_instance.save()
 		new_instance.admin_appuser.add(appuser)
-		participant = Participant(giftexchange=new_instance, appuser=appuser)
+		participant = Participant(giftexchange=new_instance, appuser=appuser, status='active')
 		participant.save()
 		return new_instance
 
@@ -136,34 +148,27 @@ class GiftExchange(models.Model):
 			created = True
 		return giftexchange, created
 
-	def add_participants(self, appuser_list):
-		participants = []
-		created_count = 0
-		for appuser in appuser_list:
-			new_participant, created = Participant.get_or_create(
-				giftexchange=self,
-				appuser=appuser,
-				likes=appuser.default_likes,
-				dislikes=appuser.default_dislikes,
-				allergies_sensitivities=appuser.default_allergies_sensitivities
-			)
-			participants.append(new_participant)
-			if created:
-				created_count += 1
-		return participants, created_count
+	def add_participant(self, appuser, delete_assignments=False):
+		if delete_assignments:
+			ExchangeAssignment.objects.filter(giftexchange=self).delete()
+		new_participant, created = Participant.get_or_create(
+			giftexchange=self,
+			appuser=appuser,
+		)
+		return new_participant, created
 
 
 	def _generate_assignments(self):
-		starting_giver = self.participant_set.order_by('?').first()
+		starting_giver = self.participant_set.filter(status='active').order_by('?').first()
 		current_giver = starting_giver
 
-		participants = self.participant_set.all()
+		participants = self.participant_set.filter(status='active').all()
 		assignments = []
 		reciever_appusers = [starting_giver.appuser, ]
 
-		while len(assignments) <= self.participant_set.all().count() - 2:
+		while len(assignments) <= self.participant_set.filter(status='active').all().count() - 2:
 			exclusions = reciever_appusers + [current_giver.appuser]
-			random_reciever_qs = self.participant_set.exclude(appuser__in=exclusions)
+			random_reciever_qs = self.participant_set.filter(status='active').exclude(appuser__in=exclusions)
 			random_reciever = random_reciever_qs.order_by('?').first()
 
 			if random_reciever:
@@ -246,6 +251,11 @@ class Participant(models.Model):
 	likes = models.TextField(blank=True, null=True)
 	dislikes = models.TextField(blank=True, null=True)
 	allergies_sensitivities = models.TextField(blank=True, null=True)
+	gift = models.TextField(blank=True, null=True)
+
+	def set_gift(self, gift_value):
+		self.gift = gift_value
+		self.save()
 
 	def update(self, likes, dislikes, allergies_sensitivities):
 		self.likes = likes
@@ -262,7 +272,13 @@ class Participant(models.Model):
 			participant = cls.objects.get(appuser=appuser, giftexchange=giftexchange)
 			created = False
 		else:
-			participant = cls(appuser=appuser, giftexchange=giftexchange)
+			participant = cls(
+				appuser=appuser, 
+				giftexchange=giftexchange,
+				likes=appuser.default_likes,
+				dislikes=appuser.default_dislikes,
+				allergies_sensitivities=appuser.default_allergies_sensitivities
+			)
 			participant.save()
 			created = True
 		return participant, created
@@ -281,3 +297,49 @@ class ExchangeAssignment(models.Model):
 
 	def __str__(self):
 		return '{} // {} -> {}'.format(self.giftexchange, self.giver, self.reciever)
+
+
+class AppInvitation(models.Model):
+	inviter = models.ForeignKey(AppUser, related_name='inviter', on_delete=models.CASCADE)
+	invitee_email = models.EmailField()
+	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
+	status = models.CharField(max_length=10, default='pending', choices=[('sent', 'sent'), ('pending', 'pending'), ('accepted', 'accepted')])
+	from_name = 'Gifterator 3000'
+	from_address = 'gifterator3000@gmail.com'
+
+	@classmethod
+	def create(cls, inviter, invitee_email, giftexchange):
+		new = cls(
+			inviter=inviter,
+			invitee_email=invitee_email,
+			giftexchange=giftexchange,
+		)
+		new.save()
+		return new
+
+	def send_invitation_for_new_user(self):
+		subject = "You have been invited you to join a gift exchange at Gifterator3000!"
+		body = """
+		Hello!<br /><br />
+		You have been invited to join "{}" by {} {}.<br />
+		<br />
+		To accept the invitation, <a href="{}">register here</a> using this email address.
+		"""
+
+		email = EmailMessage(
+		    subject,
+		    body.format(
+		    	self.giftexchange.title, 
+		    	self.inviter.djangouser.first_name, 
+		    	self.inviter.djangouser.last_name, 
+		    	reverse('login'), 
+		    ),
+		    self.from_address,
+		    [self.invitee_email, ],
+		    reply_to=[self.from_address],
+		)
+		email.content_subtype = 'html'
+
+		email.send()
+		self.status = 'sent'
+		self.save()

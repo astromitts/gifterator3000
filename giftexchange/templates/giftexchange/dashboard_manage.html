@@ -35,7 +35,7 @@
 			  <div class="card-footer">
 			  	{% if not giftexchange.assignments_locked %}
 					<a class="card-link" href="{% url 'giftexchange_manage_edit_details' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Edit</button></a>
-					<a class="card-link" href="{% url 'giftexchange_manage_participants' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Manage Particpants</button></a>
+					<a class="card-link" href="{% url 'giftexchange_manage_participants' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Manage Participants</button></a>
 				{% else %}
 					Assignments are locked - details no longer editable.
 				{% endif %}

@@ -1,0 +1,53 @@
+{% extends 'giftexchange/base.html' %}
+
+{% block page_content %}
+<div class="row">
+	<div class="col">
+		<h2>{{giftexchange.title}} Results</h2>
+	</div>
+</div>
+<div class="row">
+	<div class="col">
+		<p>{{giftexchange.description}}</p>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col">
+		{% if participant_details.gift %}
+			You got <b>{{participant_details.gift}}</b> from {{my_giver.appuser.djangouser.first_name}}! Congratulations!
+			<a href="{% url 'giftexchange_set_gift' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Update</button></a>
+		{% else %}
+			<a href="{% url 'giftexchange_set_gift' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Tell us what {{my_giver.appuser.djangouser.first_name}} got for you!</button></a>
+		{% endif %}
+	</div>
+</div>
+
+
+<div class="row">
+	<div class="col">
+		<h3>Here's what else happened:</h3>
+	</div>
+</div>
+<div class="row">
+	<div class="col">
+		<table class="table">
+			{% for assignment in assignments %}
+				<tr>
+					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.giver.appuser.pk %}">{{assignment.giver.appuser}}</a></td>
+					<td>
+						gave {% if assignment.reciever.gift %}<b>{{assignment.reciever.gift}}</b>{% endif %} to
+					</td>
+					{% if admin_user %}
+						<td>
+							<a href="{% url 'giftexchange_set_gift_for_user' giftexchange_id=giftexchange.pk appuser_id=assignment.reciever.appuser.pk %}"><button class="btn btn-primary">Update</button></a>
+						</td>	
+					{% endif %}
+					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.reciever.appuser.pk %}">{{assignment.reciever.appuser}}</a></td>
+				</tr>
+			{% endfor %}
+		</table>
+	</div>
+</div>
+{% endblock %}
+	
