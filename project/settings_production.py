@@ -1,6 +1,8 @@
 import os
 from project.settings import *  # noqa
 
+DEBUG = False
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
