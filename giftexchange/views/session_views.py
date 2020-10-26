@@ -62,9 +62,13 @@ class RegistrationHandler(UnAuthenticatedView):
 							invitation.status = 'accepted'
 							invitation.save()
 					messages.success(request, 'You registered to Gifterator 3000! Please login to continue!')
-					return redirect(reverse('dashboard'))
+					return redirect(reverse('login'))
 				else:
 					messages.error(request, 'Password fields must match')
+					context = {
+						'form': form
+					}
+					return HttpResponse(self.template.render(context, request))
 		else: 
 			context = {
 				'form': form

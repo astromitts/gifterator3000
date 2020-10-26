@@ -27,7 +27,7 @@ class BaseView(View):
 		participant_details = None
 
 		giftexchange = GiftExchange.objects.filter(pk=giftexchange_id).first()
-		
+
 		if giftexchange:
 			participant_details = appuser.exchange_participant(giftexchange)
 		return giftexchange, participant_details
@@ -135,7 +135,7 @@ class GiftExchangeAdminView(AuthenticatedView):
 		self.giftexchange_id = kwargs['giftexchange_id']
 		self.appuser = AppUser.get(djangouser=request.user)
 		self.giftexchange, self.participant_details = self._get_participant_and_exchange(self.appuser, self.giftexchange_id)
-	
+
 		if not self.giftexchange:
 			raise Http404('Gift exchange with id {} not found'.format(self.giftexchange_id))
 		if not self.participant_details:

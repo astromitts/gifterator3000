@@ -92,5 +92,6 @@ class ParticipantSearchForm(Form):
 	first_name = CharField(required=False)
 	last_name = CharField(required=False)
 
+
 class EmailForm(Form):
 	email = CharField(required=True)

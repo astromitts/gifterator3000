@@ -8,13 +8,13 @@ from django.contrib.auth.models import User
 from django.views import View
 
 from giftexchange.views.base_views import (
-	AuthenticatedView, 
-	BaseView, 
+	AuthenticatedView,
+	BaseView,
 	GiftExchangeView,
 )
 
 from giftexchange.forms import (
-	ParticipantDetailsForm, 
+	ParticipantDetailsForm,
 	GiftExchangeCreateForm,
 	FileUploadForm,
 	ProfileForm,
@@ -187,7 +187,7 @@ class GiftExchangePersonalDetail(GiftExchangeView):
 		if self.giftexchange.assignments_locked:
 			assignment_details = giftexchange.get_assignment(appuser)
 
-		
+
 		template = loader.get_template('giftexchange/giftexchange_detail.html')
 		context = {
 			'breadcrumbs': breadcrumbs,
@@ -261,7 +261,7 @@ class GiftExchangeSetGift(GiftExchangeView):
 		else:
 			self.context['form'] = form
 			return HttpResponse(self.template.render(self.context, request))
-		
+
 
 
 class GiftExchangePersonalDetailEdit(GiftExchangeView):
