@@ -57,6 +57,7 @@ class GiftExchangeEdit(GiftExchangeAdminView):
 				spending_limit=request.POST['spending_limit'],
 				location=request.POST['location'],
 				date=request.POST['date'],
+				ship_gifts_allowed=request.POST.get('ship_gifts_allowed', 'off') == 'on',
 			)
 			messages.success(request, 'Gift exchange details updated')
 			return redirect(self.return_url)
@@ -423,9 +424,11 @@ class SendAssignmentEmail(GiftExchangeAdminView):
 		self.return_url = reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id})
 		if kwargs.get('target_appuser_id'):
 			self.target_appuser = AppUser.objects.get(pk=kwargs['target_appuser_id'])
+			participant = Participant.objects.get(appuser=self.target_appuser)
+			self.assignment = ExchangeAssignment.objects.get(giver=participant)
 			confirm_message = 'Send assignment email to {} {}?'.format(
-				assignment.giver.appuser.djangouser.first_name,
-				assignment.giver.appuser.djangouser.last_name
+				self.assignment.giver.appuser.djangouser.first_name,
+				self.assignment.giver.appuser.djangouser.last_name
 			)
 			self.send_all = False
 		else:
@@ -453,7 +456,7 @@ class SendAssignmentEmail(GiftExchangeAdminView):
 			target_participants = Participant.objects.filter(giftexchange=self.giftexchange, status='active').all()
 			success_message = 'Assignment emails sent to active users.'
 		else:
-			target_participants = [Participant.objects.get(appuser=target_appuser, giftexchange=self.giftexchange), ]
+			target_participants = [Participant.objects.get(appuser=self.target_appuser, giftexchange=self.giftexchange), ]
 			success_message = 'Assignment email sent to {} {}'.format(
 				self.assignment.giver.appuser.djangouser.first_name,
 				self.assignment.giver.appuser.djangouser.last_name

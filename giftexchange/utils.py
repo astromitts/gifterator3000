@@ -8,7 +8,7 @@ import csv
 
 def csv_lines_to_dict(expected_header, file):
 
-	reader = csv.DictReader(open(file, 'r'))
+	reader = csv.DictReader(open(file, 'r'), delimiter=',', quotechar='"', skipinitialspace=True)
 	dict_list = []
 	if reader.fieldnames != expected_header:
 		return None, 'Invalid header'

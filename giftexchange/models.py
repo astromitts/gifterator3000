@@ -153,6 +153,7 @@ class GiftExchange(models.Model):
 	spending_limit = models.IntegerField(default=0)
 	admin_appuser = models.ManyToManyField(AppUser)
 	assignments_locked = models.BooleanField(default=False)
+	ship_gifts_allowed = models.BooleanField(default=False)
 
 	def get_assignment(self, giver_appuser):
 		giver_participant = Participant.objects.get(giftexchange=self, appuser=giver_appuser)
@@ -191,11 +192,12 @@ class GiftExchange(models.Model):
 			assignments.append(next_assignment)
 		return assignments
 
-	def update(self, date, location, description, spending_limit):
+	def update(self, date, location, description, spending_limit, ship_gifts_allowed):
 		self.date = date
 		self.location = location
 		self.description = description
 		self.spending_limit = spending_limit
+		self.ship_gifts_allowed = ship_gifts_allowed
 		self.save()
 
 	@classmethod
@@ -332,6 +334,7 @@ class Participant(models.Model):
 	shipping_address = models.TextField(blank=True, null=True)
 	gift = models.TextField(blank=True, null=True)
 
+	@property
 	def get_shipping_address(self):
 		return self.shipping_address or self.appuser.default_shipping_address
 
@@ -368,8 +371,7 @@ class Participant(models.Model):
 			if allergies_sensitivities:
 				participant.allergies_sensitivities = allergies_sensitivities
 			if shipping_address:
-				participant.appuser.shipping_address = shipping_address
-				participant.appuser.save()
+				participant.shipping_address = shipping_address
 			participant.save()
 			created = True
 		return participant, created

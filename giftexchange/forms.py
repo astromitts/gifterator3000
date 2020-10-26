@@ -22,7 +22,7 @@ class ParticipantDetailsForm(ModelForm):
 class GiftExchangeDetailsForm(ModelForm):
 	class Meta:
 		model = GiftExchange
-		fields = ['location', 'description', 'spending_limit', 'date']
+		fields = ['location', 'description', 'spending_limit', 'date', 'ship_gifts_allowed']
 		widgets = {
 			'date': DateInput(attrs={'class':'datepicker'}),
 		}
@@ -31,7 +31,7 @@ class GiftExchangeDetailsForm(ModelForm):
 class GiftExchangeCreateForm(ModelForm):
 	class Meta:
 		model = GiftExchange
-		fields = ['title', 'location', 'description', 'spending_limit', 'date']
+		fields = ['title', 'location', 'description', 'spending_limit', 'date', 'ship_gifts_allowed']
 		widgets = {
 			'date': DateInput(attrs={'class':'datepicker'}),
 		}

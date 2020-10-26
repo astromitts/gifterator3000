@@ -22,3 +22,10 @@ Please get a gift for {{assignment.appuser.djangouser.first_name}} {{assignment.
 {% else %}
 	{{assignment.appuser.djangouser.first_name}} did not report any allergies / sensitivities
 {% endif %}
+
+{% if giftexchange.ship_gifts_allowed and assignment.get_shipping_address %}
+	<br /><br />
+	You can ship {{assignment.appuser.djangouser.first_name}}'s gift to:
+	<br />
+	{{assignment.get_shipping_address}}
+{% endif %}
