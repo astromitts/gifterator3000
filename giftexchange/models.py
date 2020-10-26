@@ -6,6 +6,9 @@ from django.conf import settings
 from django.template.loader import render_to_string
 from datetime import datetime, timedelta
 
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 import random
 import string
 import hashlib
@@ -23,6 +26,17 @@ def generate_login_token(email):
 	)
 	token_hash = hashlib.sha256(token_base.encode())
 	return token_hash.hexdigest()
+
+def send_email(subject, html_body, to_emails):
+	message = Mail(
+		from_email=settings.FROM_ADDRESS,
+		to_emails=to_emails,
+		subject=subject,
+		html_content=html_body
+	)
+	sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+	response = sg.send(message)
+	return response
 
 
 class AppUser(models.Model):
@@ -131,15 +145,11 @@ class MagicLink(models.Model):
 				'login_link': self.full_link(request),
 			}
 		)
-		email = EmailMessage(
-		    subject,
-		    formatted_body,
-		    settings.FROM_ADDRESS,
-		    [self.user_email, ],
-		    reply_to=[settings.FROM_ADDRESS],
+		email_result = send_email(
+			subject=subject,
+			to_emails=self.user_email,
+			html_body=formatted_body
 		)
-		email.content_subtype = 'html'
-		email.send()
 
 	def __str__(self):
 		return '{} // expires: {}'.format(self.user_email, self.expiration)
@@ -401,16 +411,12 @@ class ExchangeAssignment(models.Model):
 				'giftexchange': self.giftexchange
 			}
 		)
-		email = EmailMessage(
-		    subject,
-		    formatted_body,
-		    settings.FROM_ADDRESS,
-		    [self.giver.appuser.djangouser.email, ],
-		    reply_to=[settings.FROM_ADDRESS],
+		email = send_email(
+		    subject=subject,
+		    html_body=formatted_body,
+		    to_emails=self.giver.appuser.djangouser.email,
 		)
 		email.content_subtype = 'html'
-
-		email.send()
 		self.email_sent = True
 		self.save()
 
@@ -464,15 +470,10 @@ class AppInvitation(models.Model):
 	    	self.inviter.djangouser.last_name,
 	    	magic_link,
 	    )
-		email = EmailMessage(
-		    subject,
-		    formatted_body,
-		    settings.FROM_ADDRESS,
-		    [self.invitee_email, ],
-		    reply_to=[settings.FROM_ADDRESS],
+		email = send_email(
+		    subject=subject,
+		    html_body=formatted_body,
+		    to_emails=self.invitee_email,
 		)
-		email.content_subtype = 'html'
-
-		email.send()
 		self.status = 'sent'
 		self.save()

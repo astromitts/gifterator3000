@@ -1,9 +1,9 @@
 from datetime import date, datetime, timedelta
 from giftexchange.models import AppUser, GiftExchange, Participant
+from django.conf import settings
 from giftexchange.sample_data import participant_sample
 
 import csv
-
 
 
 def csv_lines_to_dict(expected_header, file):
