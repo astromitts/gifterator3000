@@ -1,28 +1,20 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from giftexchange.models import AppUser, GiftExchange, Participant
 from giftexchange.sample_data import participant_sample
 
+import csv
 
-def csv_lines_to_dict(expected_header, lines):
-	parsed_lines = []
-	line_index = 0
-	clean_lines = [line.strip() for line in lines]
-	for line in clean_lines:
-		parts = line.split(',')
-		if line_index == 0:
-			header_positions = {}
-			header_index = 0
-			for part in parts:
-				if part in expected_header:
-					header_positions[part] = header_index
-				header_index += 1
-		else:
-			parsed_line = {}
-			for field in expected_header:
-				parsed_line[field] = parts[header_positions[field]]
-			parsed_lines.append(parsed_line)
-		line_index += 1
-	return parsed_lines
+
+
+def csv_lines_to_dict(expected_header, file):
+
+	reader = csv.DictReader(open(file, 'r'))
+	dict_list = []
+	if reader.fieldnames != expected_header:
+		return None, 'Invalid header'
+	for line in reader:
+		dict_list.append(line)
+	return dict_list, ''
 
 
 def set_giftexchange_admin(email, giftexchange):

@@ -1,5 +1,13 @@
 from django.contrib import admin
-from giftexchange.models import GiftExchange, Participant, AppUser, ExchangeAssignment, AppInvitation
+from giftexchange.models import (
+    GiftExchange,
+    Participant,
+    AppUser,
+    ExchangeAssignment,
+    AppInvitation,
+    MagicLink
+)
+
 
 class ParticipantInline(admin.TabularInline):
     model = Participant
@@ -16,3 +24,4 @@ admin.site.register(GiftExchange, GiftExchangeAdmin)
 admin.site.register(Participant)
 admin.site.register(ExchangeAssignment)
 admin.site.register(AppInvitation)
+admin.site.register(MagicLink)

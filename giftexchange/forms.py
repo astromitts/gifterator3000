@@ -1,11 +1,11 @@
 from django.forms import (
-	Form, 
-	ModelForm, 
-	PasswordInput, 
-	FileField, 
-	DateInput, 
-	EmailField, 
-	CharField, 
+	Form,
+	ModelForm,
+	PasswordInput,
+	FileField,
+	DateInput,
+	EmailField,
+	CharField,
 	Textarea,
 	HiddenInput,
 )
@@ -41,10 +41,7 @@ class LoginForm(ModelForm):
 
     class Meta:
         model = User
-        fields = ['email', 'password']
-        widgets = {
-            'password': PasswordInput(),
-        }
+        fields = ['email']
 
 
 class GiftForm(ModelForm):
@@ -60,27 +57,13 @@ class ProfileForm(Form):
 	default_likes = CharField(widget=Textarea, required=False)
 	default_dislikes = CharField(widget=Textarea, required=False)
 	default_allergies_and_sensitivites = CharField(widget=Textarea, required=False)
-
-
-class PasswordChangeForm(Form):
-	current_password = CharField(widget=PasswordInput())
-	new_password = CharField(widget=PasswordInput())
-	confirm_new_password = CharField(widget=PasswordInput())
-
-
-class PasswordResetForm(Form):
-	email = EmailField()
-	current_password = CharField(widget=PasswordInput())
-	new_password = CharField(widget=PasswordInput())
-	confirm_new_password = CharField(widget=PasswordInput())
+	default_shipping_address = CharField(widget=Textarea, required=False)
 
 
 class RegisterForm(Form):
 	email = EmailField()
 	first_name = CharField()
 	last_name = CharField()
-	password = CharField(widget=PasswordInput())
-	confirm_password = CharField(widget=PasswordInput())
 
 
 class FileUploadForm(Form):

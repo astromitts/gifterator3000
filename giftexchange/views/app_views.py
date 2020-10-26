@@ -42,6 +42,7 @@ class ManageProfile(AuthenticatedView):
 			'default_likes': self.appuser.default_likes,
 			'default_dislikes': self.appuser.default_dislikes,
 			'default_allergies_and_sensitivites': self.appuser.default_allergies_sensitivities,
+			'shipping_address': self.appuser.default_shipping_address
 		}
 		self.context['form'] = ProfileForm(initial=init)
 		return HttpResponse(self.template.render(self.context, request))
@@ -56,6 +57,7 @@ class ManageProfile(AuthenticatedView):
 			self.appuser.default_likes = request.POST['default_likes']
 			self.appuser.default_dislikes = request.POST['default_dislikes']
 			self.appuser.default_allergies_sensitivities = request.POST['default_allergies_and_sensitivites']
+			self.shipping_address = request.POST['shipping_address']
 			self.appuser.save()
 
 			messages.success(request, 'Updated user profile information')

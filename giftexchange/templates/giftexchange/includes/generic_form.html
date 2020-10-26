@@ -5,7 +5,9 @@
 				{% csrf_token %}
 			{% endif %}
 			<table class="table">
-				{{form.as_table}}
+				{% if form %}
+					{{form.as_table}}
+				{% endif %}
 				<tr>
 					<td></td>
 					<td><input type="submit" class="btn btn-primary" value="{% if submit_text %}{{submit_text}}{%else%}submit{%endif%}" /></td>

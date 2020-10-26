@@ -4,15 +4,33 @@ from django.urls import reverse
 from django.core.mail import EmailMessage
 from django.conf import settings
 from django.template.loader import render_to_string
+from datetime import datetime, timedelta
 
+import random
+import string
+import hashlib
+
+
+def twentyfourhoursfromnow():
+	return datetime.now() + timedelta(1)
+
+
+def generate_login_token(email):
+	token_base = '{}-{}-{}'.format(
+		email,
+		datetime.now(),
+		''.join(random.choices(string.ascii_uppercase + string.digits, k = 60))
+	)
+	token_hash = hashlib.sha256(token_base.encode())
+	return token_hash.hexdigest()
 
 
 class AppUser(models.Model):
 	djangouser = models.OneToOneField(User, on_delete=models.CASCADE)
-	needs_password_reset = models.BooleanField(default=True)
 	default_likes = models.TextField(blank=True, null=True)
 	default_dislikes = models.TextField(blank=True, null=True)
 	default_allergies_sensitivities = models.TextField(blank=True, null=True)
+	default_shipping_address = models.TextField(blank=True, null=True)
 
 	def __str__(self):
 		return '{} {} ({})'.format(self.djangouser.first_name, self.djangouser.last_name, self.djangouser.email)
@@ -28,8 +46,16 @@ class AppUser(models.Model):
 		return False
 
 	@classmethod
-	def create(cls, djangouser, needs_password_reset=True):
-		appuser = cls(djangouser=djangouser, needs_password_reset=needs_password_reset)
+	def create(cls, djangouser, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None):
+		appuser = cls(djangouser=djangouser)
+		if likes:
+			appuser.default_likes = likes
+		if dislikes:
+			appuser.default_dislikes = dislikes
+		if allergies_sensitivities:
+			appuser.default_allergies_sensitivities = allergies_sensitivities
+		if shipping_address:
+			appuser.default_shipping_address = shipping_address
 		appuser.save()
 		return appuser
 
@@ -74,6 +100,50 @@ class AppUser(models.Model):
 		return None
 
 
+class MagicLink(models.Model):
+	expiration = models.DateTimeField(default=twentyfourhoursfromnow)
+	user_email = models.EmailField()
+	token = models.CharField(max_length=64)
+
+	def tmp_password(self):
+		return generate_login_token(self.user_email)
+
+	def full_link(self, request):
+		return '{}://{}{}?token={}&email={}'.format(
+			request.scheme,
+			request.get_host(),
+			reverse('login'),
+			self.token,
+			self.user_email
+		)
+
+	def save(self, *args, **kwargs):
+		if not self.pk:
+			self.token = generate_login_token(self.user_email)
+		super(MagicLink, self).save(*args, **kwargs)
+		dupes = MagicLink.objects.filter(user_email=self.user_email).exclude(pk=self.pk).delete()
+
+	def send_link_email(self, request):
+		subject = 'Gifterator3000 login link'
+		formatted_body = render_to_string(
+			'giftexchange/emails/send_magic_link.html',
+			context={
+				'login_link': self.full_link(request),
+			}
+		)
+		email = EmailMessage(
+		    subject,
+		    formatted_body,
+		    settings.FROM_ADDRESS,
+		    [self.user_email, ],
+		    reply_to=[settings.FROM_ADDRESS],
+		)
+		email.content_subtype = 'html'
+		email.send()
+
+	def __str__(self):
+		return '{} // expires: {}'.format(self.user_email, self.expiration)
+
 
 class GiftExchange(models.Model):
 	title = models.CharField(max_length=300, unique=True)
@@ -102,7 +172,7 @@ class GiftExchange(models.Model):
 	def lock(self):
 		self.assignments_locked = True
 		self.save()
-	
+
 	def unlock(self):
 		self.assignments_locked = False
 		self.save()
@@ -120,7 +190,7 @@ class GiftExchange(models.Model):
 				next_giver = next_assignment.reciever
 			assignments.append(next_assignment)
 		return assignments
-	
+
 	def update(self, date, location, description, spending_limit):
 		self.date = date
 		self.location = location
@@ -259,7 +329,11 @@ class Participant(models.Model):
 	likes = models.TextField(blank=True, null=True)
 	dislikes = models.TextField(blank=True, null=True)
 	allergies_sensitivities = models.TextField(blank=True, null=True)
+	shipping_address = models.TextField(blank=True, null=True)
 	gift = models.TextField(blank=True, null=True)
+
+	def get_shipping_address(self):
+		return self.shipping_address or self.appuser.default_shipping_address
 
 	def set_gift(self, gift_value):
 		self.gift = gift_value
@@ -273,7 +347,7 @@ class Participant(models.Model):
 
 
 	@classmethod
-	def get_or_create(cls, appuser, giftexchange):
+	def get_or_create(cls, appuser, giftexchange, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None):
 		created = False
 		existing_participant = cls.objects.filter(appuser=appuser, giftexchange=giftexchange).exists()
 		if existing_participant:
@@ -281,12 +355,21 @@ class Participant(models.Model):
 			created = False
 		else:
 			participant = cls(
-				appuser=appuser, 
+				appuser=appuser,
 				giftexchange=giftexchange,
 				likes=appuser.default_likes,
 				dislikes=appuser.default_dislikes,
 				allergies_sensitivities=appuser.default_allergies_sensitivities
 			)
+			if likes:
+				participant.likes = likes
+			if dislikes:
+				participant.dislikes = dislikes
+			if allergies_sensitivities:
+				participant.allergies_sensitivities = allergies_sensitivities
+			if shipping_address:
+				participant.appuser.shipping_address = shipping_address
+				participant.appuser.save()
 			participant.save()
 			created = True
 		return participant, created
@@ -367,18 +450,17 @@ class AppInvitation(models.Model):
 		created = True
 		return instance, created, reason
 
-	def send_invitation_for_new_user(self, registration_link):
+	def send_invitation_for_new_user(self, magic_link):
 		subject = "You have been invited you to join a gift exchange at Gifterator3000!"
 		body = """
 		Hello!<br /><br />
-		You have been invited to join "{}" by {} {}. To accept the invitation, <a href="{}">register here</a> using this email address.
+		You have been invited to join "{}" by {} {}. To accept the invitation, <a href="{}">login with this link</a>.
 		"""
-
 		formatted_body = body.format(
-	    	self.giftexchange.title, 
-	    	self.inviter.djangouser.first_name, 
-	    	self.inviter.djangouser.last_name, 
-	    	registration_link, 
+	    	self.giftexchange.title,
+	    	self.inviter.djangouser.first_name,
+	    	self.inviter.djangouser.last_name,
+	    	magic_link,
 	    )
 		email = EmailMessage(
 		    subject,

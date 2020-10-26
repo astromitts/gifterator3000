@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.template import loader
 from django.urls import reverse
+from django.core.files.storage import FileSystemStorage
 
 from giftexchange.views.base_views import GiftExchangeAdminView, ParticipantAdminAction
 from giftexchange.forms import (
@@ -12,7 +13,7 @@ from giftexchange.forms import (
 	EmailForm,
 	FileUploadForm,
 )
-from giftexchange.models import AppInvitation, AppUser, Participant, ExchangeAssignment
+from giftexchange.models import AppInvitation, AppUser, Participant, ExchangeAssignment, MagicLink
 from giftexchange.utils import csv_lines_to_dict
 
 
@@ -107,7 +108,7 @@ class ToggleAssignmentLock(GiftExchangeAdminView):
 
 class ParticipantsList(GiftExchangeAdminView):
 	""" List view of all gift exchange participants
-	""" 
+	"""
 	def get(self, request, *args, **kwargs):
 		participants = self.giftexchange.participant_set.all()
 		pending_invitations = AppInvitation.objects.filter(giftexchange=self.giftexchange)
@@ -129,7 +130,7 @@ class ParticipantsList(GiftExchangeAdminView):
 
 class ParticipantsSearch(GiftExchangeAdminView):
 	""" List view of all gift exchange participants
-	""" 
+	"""
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/participants_add_search.html')
 		accepted_search_fields = ['email', 'first_name', 'last_name']
@@ -155,7 +156,7 @@ class ParticipantsSearch(GiftExchangeAdminView):
 				('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Search Participants', None)
 			],
-			'form': form, 
+			'form': form,
 			'mediumwidth': True,
 			'method': 'GET',
 			'result_users': result_users,
@@ -167,7 +168,7 @@ class ParticipantsSearch(GiftExchangeAdminView):
 
 class ParticipantsAddFromSearch(GiftExchangeAdminView):
 	""" Handler for adding a selected list off users to a given Gift Exchange
-	""" 
+	"""
 	def post(self, request, *args, **kwargs):
 		invited_appusers = []
 		created_count = 0
@@ -183,7 +184,7 @@ class ParticipantsAddFromSearch(GiftExchangeAdminView):
 		else:
 			messages.error(request, 'No new invitations to make')
 		return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.id}))
-		
+
 
 class InviteNewUser(GiftExchangeAdminView):
 	""" Handler for inviting a new user to the App
@@ -234,7 +235,7 @@ class SetParticipantAdmin(ParticipantAdminAction):
 		messages.success(request, 'Participant added as admin')
 		return redirect(self.return_url)
 
-	def get(self, request, *args, **kwargs):		
+	def get(self, request, *args, **kwargs):
 		confirm_message = 'Add {} {} as an amdin of "{}"?'.format(
 			self.target_participant.appuser.djangouser.first_name,
 			self.target_participant.appuser.djangouser.last_name,
@@ -265,7 +266,7 @@ class UnsetParticipantAdmin(ParticipantAdminAction):
 		messages.success(request, 'Participant removed as admin')
 		return redirect(self.return_url)
 
-	def get(self, request, *args, **kwargs):		
+	def get(self, request, *args, **kwargs):
 		confirm_message = 'Remove {} {} as an admin of "{}"?'.format(
 			self.target_participant.appuser.djangouser.first_name,
 			self.target_participant.appuser.djangouser.last_name,
@@ -297,23 +298,65 @@ class ParticipantUpload(GiftExchangeAdminView):
 		invited_count = 0
 		if filehandle.multiple_chunks():
 			messages.error('File is too large. Please split it into smaller files for upload.')
-			error = True
+			return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 		else:
-			expected_header = ['first_name', 'last_name', 'email']
-			lines = [line.decode("utf-8") for line in filehandle.readlines()]
-			parsed_participants = csv_lines_to_dict(expected_header, lines)
-			for participant in parsed_participants:
-				djangouser_exists = User.objects.filter(email=participant['email']).exists()
-				if djangouser_exists:
-					appuser = AppUser.get(djangouser=User.objects.get(email=participant['email']))
-					participant, created = Participant.get_or_create(appuser)
-					if created:
-						added_count += 1
+			expected_header = ['first_name', 'last_name', 'email', 'shipping_address', 'likes', 'dislikes', 'allergies']
+			fs = FileSystemStorage()
+			filename = fs.save('user-uploads/appuserupload-{}-{}'.format(self.appuser.pk, filehandle.name), filehandle)
+			parsed_participants, error = csv_lines_to_dict(expected_header, filename)
+			fs.delete(filename)
+			if error:
+				messages.error(request, error)
+				return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
+			for participant_data in parsed_participants:
+				djangouser_exists = User.objects.filter(email=participant_data['email']).exists()
+				if not djangouser_exists:
+					djangouser = User(
+						email=participant_data['email'],
+						username=participant_data['email'],
+						first_name=participant_data['first_name'],
+						last_name=participant_data['last_name']
+					)
+					djangouser.save()
 				else:
-					invitation = AppInvitation.create(self.appuser, participant['email'], self.giftexchange)
-					registration_url = self._full_url_reverse('register')
-					invitation.send_invitation_for_new_user(registration_url)
-					invited_count += 1
+					djangouser = User.objects.get(email=participant_data['email'])
+
+				appuser_exists = AppUser.objects.filter(djangouser=djangouser).exists()
+				if not appuser_exists:
+					appuser = AppUser.create(
+						djangouser=djangouser,
+						likes=participant_data['likes'],
+						dislikes=participant_data['dislikes'],
+						allergies_sensitivities=participant_data['allergies'],
+						shipping_address=participant_data['shipping_address']
+					)
+				else:
+					appuser = AppUser.objects.get(djangouser=djangouser)
+
+				participant, created = Participant.get_or_create(
+					appuser,
+					giftexchange=self.giftexchange,
+					likes=participant_data['likes'],
+					dislikes=participant_data['dislikes'],
+					allergies_sensitivities=participant_data['allergies'],
+					shipping_address=participant_data['shipping_address']
+				)
+				if created:
+					added_count += 1
+
+				# cleanup any existing invitations
+				AppInvitation.objects.filter(
+					inviter=self.appuser,
+					invitee_email=participant_data['email'],
+					giftexchange=self.giftexchange
+				).delete()
+				magic_link = MagicLink(user_email=participant_data['email'])
+				magic_link.save()
+				invitation = AppInvitation(inviter=self.appuser, invitee_email=participant_data['email'], giftexchange=self.giftexchange)
+				invitation.save()
+				invitation.send_invitation_for_new_user(magic_link.full_link(request))
+				invited_count += 1
+
 			messages.success(request, 'Added {} participants to Gift Exchange and invited {} users'.format(added_count, invited_count))
 			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 		# just redirect to the GET if it failed
@@ -344,7 +387,7 @@ class RemoveParticipant(ParticipantAdminAction):
 		messages.success(request, 'Participant removed from gift exchange')
 		return redirect(self.return_url)
 
-	def get(self, request, *args, **kwargs):	
+	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/confirm_action.html')
 		confirm_message = 'Remove {} {} from gift exchange "{}"?'.format(
 			self.target_participant.appuser.djangouser.first_name,
@@ -367,7 +410,7 @@ class RemoveParticipant(ParticipantAdminAction):
 
 class SendAssignmentEmail(GiftExchangeAdminView):
 	def _send_email_for_participant(self, target_participant):
-		
+
 		assignment = ExchangeAssignment.objects.get(
 			giver=target_participant,
 			giftexchange=self.giftexchange
@@ -419,7 +462,7 @@ class SendAssignmentEmail(GiftExchangeAdminView):
 			self._send_email_for_participant(participant)
 
 		messages.success(
-			request, 
+			request,
 			success_message
 		)
 		return redirect(self.return_url)
