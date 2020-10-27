@@ -1,7 +1,7 @@
 import os
 from project.settings import *  # noqa
 
-DEBUG = True
+DEBUG = False
 
 DATABASES = {
     'default': {
