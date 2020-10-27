@@ -421,7 +421,8 @@ class InviteAdmin(GiftExchangeAdminView):
 			admin_invitation.send_invitation(request)
 			success_message = 'Sent an registration invitation to {}'.format(self.participant.name)
 		else:
-			self.giftexchange.admin_appuser.append(self.participant.appuser)
+			self.giftexchange.admin_appuser.add(self.participant.appuser)
+			self.giftexchange.save()
 			success_message = 'Set {} as an admin'.format(self.participant.name)
 
 		messages.success(
