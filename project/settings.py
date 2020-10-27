@@ -124,3 +124,5 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'giftexchange/static')
 
 FROM_NAME = 'Gifterator3k'
 FROM_ADDRESS = 'admin@gifterator3k.com'
+
+HOST_ALIAS = None

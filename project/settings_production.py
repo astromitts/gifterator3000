@@ -21,3 +21,5 @@ ALLOWED_HOSTS = ['gifterator3000.herokuapp.com', 'herokuapp.com', 'gifterator3k.
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 SEND_EMAILS = True
+
+HOST_ALIAS = 'http://www.gifterator3k.com'

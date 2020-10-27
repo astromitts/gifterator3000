@@ -167,13 +167,21 @@ class MagicLink(models.Model):
 		return generate_login_token(self.user_email)
 
 	def full_link(self, request, pathname='login'):
-		return '{}://{}{}?token={}&email={}'.format(
-			request.scheme,
-			request.get_host(),
-			reverse(pathname),
-			self.token,
-			self.user_email
-		)
+		if settings.HOST_ALIAS:
+			return '{}?token={}&email={}'.format(
+				settings.HOST_ALIAS,
+				reverse(pathname),
+				self.token,
+				self.user_email
+			)
+		else:
+			return '{}://{}{}?token={}&email={}'.format(
+				request.scheme,
+				request.get_host(),
+				reverse(pathname),
+				self.token,
+				self.user_email
+			)
 
 	def save(self, *args, **kwargs):
 		if not self.pk:
