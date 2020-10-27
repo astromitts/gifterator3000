@@ -10,7 +10,7 @@ def csv_lines_to_dict(expected_header, file):
 
 	reader = csv.DictReader(open(file, 'r'), delimiter=',', quotechar='"', skipinitialspace=True)
 	dict_list = []
-	if reader.fieldnames != expected_header:
+	if sorted(reader.fieldnames) != sorted(expected_header):
 		return None, 'Invalid header'
 	for line in reader:
 		dict_list.append(line)

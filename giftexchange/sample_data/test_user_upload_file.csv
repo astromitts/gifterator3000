@@ -1,4 +1,4 @@
 first_name,last_name,email,shipping_address,likes,dislikes,allergies
-Amina,Hyde,aminda@example.com,"123 fake street Oklahoma City, OK 12345","cats, socks, stickers",,nuts
-Kacy,Ochoa,kochoa@example.com,"123 imagination way Orlando, FL 32826",,,
+Amina,Hyde,aminda@example.com,"123 fake street Oklahoma City, OK 12345","cats, stickers",,nuts
+Kacy,Ochoa,kochoa@example.com,"123 imagination way Orlando, FL 32826",,"Socks, ties, etc.",
 Mattie,Marsh,marshm@example.com,"123 fantasy ave Washington DC 10011", "politics, Veep, Game of Thrones", "shenanigans","dairy"
