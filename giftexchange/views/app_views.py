@@ -135,10 +135,6 @@ class GiftExchangePersonalDetail(GiftExchangeView):
 			('{} {}'.format(participant_details.first_name, participant_details.last_name), None)
 		]
 
-		assignment_details = None
-		if self.giftexchange.assignments_locked:
-			assignment_details = giftexchange.get_assignment(appuser)
-
 
 		template = loader.get_template('giftexchange/giftexchange_detail.html')
 		context = {
@@ -146,7 +142,6 @@ class GiftExchangePersonalDetail(GiftExchangeView):
 			'admin_user': self.is_admin,
 			'appuser': self.appuser,
 			'participant_details': participant_details,
-			'assignment_details': assignment_details,
 			'giftexchange': self.giftexchange
 		}
 		return HttpResponse(template.render(context, request))
