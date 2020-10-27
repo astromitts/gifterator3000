@@ -168,7 +168,7 @@ class MagicLink(models.Model):
 
 	def full_link(self, request, pathname='login'):
 		if settings.HOST_ALIAS:
-			return '{}?token={}&email={}'.format(
+			return '{}{}?token={}&email={}'.format(
 				settings.HOST_ALIAS,
 				reverse(pathname),
 				self.token,
