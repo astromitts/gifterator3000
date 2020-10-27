@@ -225,6 +225,10 @@ class ParticipantUpload(GiftExchangeAdminView):
 					email=participant_data['email'],
 					first_name=participant_data['first_name'],
 					last_name=participant_data['last_name'],
+					likes=participant_data['likes'],
+					dislikes=participant_data['dislikes'],
+					allergies_sensitivities=participant_data['allergies'],
+					shipping_address=participant_data['shipping_address'],
 					giftexchange=self.giftexchange,
 					status='active'
 				)
