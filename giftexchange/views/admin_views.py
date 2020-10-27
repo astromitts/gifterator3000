@@ -10,7 +10,7 @@ from giftexchange.views.base_views import GiftExchangeAdminView, ParticipantAdmi
 from giftexchange.forms import (
 	GiftExchangeDetailsForm,
 	ParticipantSearchForm,
-	EmailForm,
+	RegisterForm,
 	FileUploadForm,
 )
 from giftexchange.models import AppInvitation, AppUser, Participant, ExchangeAssignment, MagicLink
@@ -206,24 +206,28 @@ class InviteNewUser(GiftExchangeAdminView):
 		}
 
 	def get(self, request, *args, **kwargs):
-		self.context['form'] = EmailForm()
+		self.context['form'] = RegisterForm()
 		return HttpResponse(self.template.render(self.context, request))
 
 	def post(self, request, *args, **kwargs):
-		form = EmailForm(request.POST)
+		form = RegisterForm(request.POST)
 		if form.is_valid():
-			invitation, created, reason = AppInvitation.get_or_create(
-				inviter=self.appuser,
-				invitee_email=request.POST['email'],
-				giftexchange=self.giftexchange
+			participant_data = request.POST
+			app_invitation, participant_created, error_message = AppUser.invite(
+				email=participant_data['email'],
+				first_name=participant_data['first_name'],
+				last_name=participant_data['last_name'],
+				giftexchange=self.giftexchange,
+				inviter=self.appuser
 			)
-			if created:
-				registration_url = self._full_url_reverse(request, 'register')
-				invitation.send_invitation_for_new_user(registration_url)
+			if app_invitation:
+				magic_link = MagicLink(user_email=participant_data['email'])
+				magic_link.save()
+				app_invitation.send_invitation_for_new_user(magic_link.full_link(request))
 				messages.success(request, 'Invitation sent to {}'.format(request.POST['email']))
 				return redirect(self.return_url)
 			else:
-				messages.error(request, reason)
+				messages.error(request, error_message)
 				return redirect(reverse('giftexchange_invite_new_user', kwargs={'giftexchange_id': self.giftexchange.id}))
 
 
@@ -310,54 +314,20 @@ class ParticipantUpload(GiftExchangeAdminView):
 				messages.error(request, error)
 				return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 			for participant_data in parsed_participants:
-				djangouser_exists = User.objects.filter(email=participant_data['email']).exists()
-				if not djangouser_exists:
-					djangouser = User(
-						email=participant_data['email'],
-						username=participant_data['email'],
-						first_name=participant_data['first_name'],
-						last_name=participant_data['last_name']
-					)
-					djangouser.save()
-				else:
-					djangouser = User.objects.get(email=participant_data['email'])
-
-				appuser_exists = AppUser.objects.filter(djangouser=djangouser).exists()
-				if not appuser_exists:
-					appuser = AppUser.create(
-						djangouser=djangouser,
-						likes=participant_data['likes'],
-						dislikes=participant_data['dislikes'],
-						allergies_sensitivities=participant_data['allergies'],
-						shipping_address=participant_data['shipping_address']
-					)
-				else:
-					appuser = AppUser.objects.get(djangouser=djangouser)
-
-				participant, created = Participant.get_or_create(
-					appuser,
+				app_invitation, participant_created, error_message = AppUser.invite(
+					email=participant_data['email'],
+					first_name=participant_data['first_name'],
+					last_name=participant_data['last_name'],
 					giftexchange=self.giftexchange,
-					likes=participant_data['likes'],
-					dislikes=participant_data['dislikes'],
-					allergies_sensitivities=participant_data['allergies'],
-					shipping_address=participant_data['shipping_address']
+					inviter=self.appuser
 				)
-				if created:
+				if app_invitation:
+					magic_link = MagicLink(user_email=participant_data['email'])
+					magic_link.save()
+					app_invitation.send_invitation_for_new_user(magic_link.full_link(request))
+					invited_count += 1
+				if participant_created:
 					added_count += 1
-
-				# cleanup any existing invitations
-				AppInvitation.objects.filter(
-					inviter=self.appuser,
-					invitee_email=participant_data['email'],
-					giftexchange=self.giftexchange
-				).delete()
-				magic_link = MagicLink(user_email=participant_data['email'])
-				magic_link.save()
-				invitation = AppInvitation(inviter=self.appuser, invitee_email=participant_data['email'], giftexchange=self.giftexchange)
-				invitation.save()
-				invitation.send_invitation_for_new_user(magic_link.full_link(request))
-				invited_count += 1
-
 			messages.success(request, 'Added {} participants to Gift Exchange and invited {} users'.format(added_count, invited_count))
 			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 		# just redirect to the GET if it failed

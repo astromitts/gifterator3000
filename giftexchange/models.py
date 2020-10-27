@@ -49,6 +49,30 @@ class AppUser(models.Model):
 	def __str__(self):
 		return '{} {} ({})'.format(self.djangouser.first_name, self.djangouser.last_name, self.djangouser.email)
 
+	@classmethod
+	def invite(cls, email, first_name, last_name, giftexchange, inviter):
+		djangouser, djangouser_created = AppUser.get_or_create_djangouser(email, first_name, last_name)
+		appuser_qs = AppUser.objects.filter(djangouser=djangouser)
+		if appuser_qs.exists():
+			appuser = appuser_qs.first()
+		else:
+			appuser = AppUser(djangouser=djangouser)
+			appuser.save()
+		participant, participant_created = Participant.get_or_create(
+			appuser,
+			giftexchange=giftexchange
+		)
+		invitation_qs = AppInvitation.objects.filter(giftexchange=giftexchange, invitee=appuser)
+		if invitation_qs.exists():
+			return None, None, 'invitation already exists'
+
+		invitation = AppInvitation(
+			inviter=inviter,
+			invitee=appuser,
+			giftexchange=giftexchange
+		)
+		return invitation, participant_created, None
+
 	def is_giftexchange_admin(self, giftexchange_id):
 		giftexchange = GiftExchange.objects.get(pk=giftexchange_id)
 		return self in giftexchange.admin_appuser.all()
@@ -352,10 +376,11 @@ class Participant(models.Model):
 		self.gift = gift_value
 		self.save()
 
-	def update(self, likes, dislikes, allergies_sensitivities):
+	def update(self, likes, dislikes, allergies_sensitivities, shipping_address):
 		self.likes = likes
 		self.dislikes = dislikes
 		self.allergies_sensitivities = allergies_sensitivities
+		self.shipping_address = shipping_address
 		self.save()
 
 
@@ -422,7 +447,8 @@ class ExchangeAssignment(models.Model):
 
 class AppInvitation(models.Model):
 	inviter = models.ForeignKey(AppUser, related_name='inviter', on_delete=models.CASCADE)
-	invitee_email = models.EmailField()
+	invitee = models.ForeignKey(AppUser, related_name='invitee', on_delete=models.CASCADE, null=True)
+	invitee_email = models.EmailField(blank=True, null=True)  # deprecated
 	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
 	status = models.CharField(max_length=10, default='pending', choices=[('sent', 'sent'), ('pending', 'pending'), ('accepted', 'accepted')])
 
@@ -462,7 +488,7 @@ class AppInvitation(models.Model):
 		subject = "You have been invited you to join a gift exchange at Gifterator3000!"
 		body = """
 		Hello!<br /><br />
-		You have been invited to join "{}" by {} {}. To accept the invitation, <a href="{}">login with this link</a>.
+		You have been invited to join "{}" by {} {}. To accept the invitation, <a href="{}">login using this magic link</a>.
 		"""
 		formatted_body = body.format(
 	    	self.giftexchange.title,
@@ -473,7 +499,7 @@ class AppInvitation(models.Model):
 		email = send_email(
 		    subject=subject,
 		    html_body=formatted_body,
-		    to_emails=self.invitee_email,
+		    to_emails=self.invitee.djangouser.email,
 		)
 		self.status = 'sent'
 		self.save()
