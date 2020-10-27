@@ -95,7 +95,7 @@ class AppUser(models.Model):
 	def exchange_participant(self, giftexchange):
 		participant_exists = Participant.objects.filter(email=self.djangouser.email, giftexchange=giftexchange).exists()
 		if participant_exists:
-			return Participant.objects.get(appuser=self, giftexchange=giftexchange)
+			return Participant.objects.get(email=self.djangouser.email, giftexchange=giftexchange)
 		return False
 
 	@classmethod
