@@ -305,8 +305,7 @@ class PreviewAssignmentEmail(GiftExchangeAdminView):
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Manage Assignments', return_url),
 				('Preview Assignment Email', None)
 			],
@@ -349,8 +348,7 @@ class SendAssignmentEmail(GiftExchangeAdminView):
 		self.context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Manage Assignments', self.return_url),
 				('Send Assignment Email', None)
 			],
