@@ -110,7 +110,8 @@ class AcceptGiftExchangeInvitation(AuthenticatedView):
 		participant_details.update(
 			likes=self.appuser.default_likes,
 			dislikes=self.appuser.default_dislikes,
-			allergies_sensitivities=self.appuser.default_allergies_sensitivities
+			allergies_sensitivities=self.appuser.default_allergies_sensitivities,
+			shipping_address=self.appuser.default_shipping_address
 		)
 		messages.success(request, 'You have been added to "{}"'.format(self.giftexchange.title))
 		return redirect(reverse('dashboard'))
