@@ -1,0 +1,15 @@
+{% extends 'giftexchange/base.html' %}
+{% block page_content %}
+	{% for email in emails %}
+		TO: {{email.to_email}} <br />
+		FROM: {{email.from_email}} <br />
+		SUBJECT: {{email.subject}} <br />
+		<br />
+		------------------------------------------
+		<br />
+		{{email.html_body|safe}}
+		<br /><br />
+		==========================================
+		<br /><br />
+	{% endfor %}
+{% endblock %}

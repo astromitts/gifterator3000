@@ -32,7 +32,7 @@ def generate_login_token(email):
 	return token_hash.hexdigest()
 
 def send_email(subject, html_body, to_emails):
-	if settings.SEND_EMAILS:
+	if settings.SEND_EMAILS and not settings.TEST_EMAIL_DOMAIN in to_emails:
 		message = Mail(
 			from_email=settings.FROM_ADDRESS,
 			to_emails=to_emails,
@@ -475,6 +475,7 @@ class ExchangeAssignment(models.Model):
 		formatted_body = render_to_string(
 			'giftexchange/emails/assignment_email.html',
 			context={
+				'giver': self.giver,
 				'assignment': self.reciever,
 				'giftexchange': self.giftexchange
 			}
@@ -484,9 +485,26 @@ class ExchangeAssignment(models.Model):
 		    html_body=formatted_body,
 		    to_emails=self.giver.email,
 		)
-		email.content_subtype = 'html'
 		self.email_sent = True
 		self.save()
+
+	def render_assignment_email(self):
+		subject = 'You have been given an assignment for "{}"'.format(self.giftexchange.title)
+		formatted_body = render_to_string(
+			'giftexchange/emails/assignment_email.html',
+			context={
+				'giver': self.giver,
+				'assignment': self.reciever,
+				'giftexchange': self.giftexchange
+			}
+		)
+		email_vars = {
+		    'subject': subject,
+		    'html_body': formatted_body,
+		    'to_email': self.giver.email,
+		    'from_email': settings.FROM_ADDRESS
+		}
+		return email_vars
 
 
 class AdminInvitation(models.Model):

@@ -126,3 +126,5 @@ FROM_NAME = 'Gifterator3k'
 FROM_ADDRESS = 'admin@gifterator3k.com'
 
 HOST_ALIAS = None
+
+TEST_EMAIL_DOMAIN = 'gifterator3ktest.com'

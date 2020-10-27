@@ -33,8 +33,7 @@ class GiftExchangeAdminDetail(GiftExchangeAdminView):
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', None)
+				(self.giftexchange.title, None)
 			],
 			'giftexchange': self.giftexchange
 		}
@@ -281,6 +280,47 @@ class RemoveParticipant(ParticipantAdminAction):
 			'confirm_message': confirm_message,
 			'return_url': self.return_url,
 		}
+		return HttpResponse(template.render(context, request))
+
+
+class PreviewAssignmentEmail(GiftExchangeAdminView):
+	def _render_email_for_participant(self, target_participant):
+
+		assignment = ExchangeAssignment.objects.get(
+			giver=target_participant,
+			giftexchange=self.giftexchange
+		)
+		return assignment.render_assignment_email()
+
+	def get(self, request, *args, **kwargs):
+		template = loader.get_template('giftexchange/emails_preview.html')
+		return_url = reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id})
+		if kwargs.get('target_participant_id'):
+			participant = Participant.objects.get(pk=kwargs['target_participant_id'])
+			assignment = ExchangeAssignment.objects.get(giver=participant)
+			send_all = False
+		else:
+			send_all = True
+
+		context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Assignments', return_url),
+				('Preview Assignment Email', None)
+			],
+			'return_url': return_url,
+			'emails': []
+		}
+
+		if send_all:
+			target_participants = Participant.objects.filter(giftexchange=self.giftexchange, status='active').all()
+		else:
+			target_participants = [assignment.giver, ]
+		for participant in target_participants:
+			context['emails'].append(self._render_email_for_participant(participant))
+
 		return HttpResponse(template.render(context, request))
 
 

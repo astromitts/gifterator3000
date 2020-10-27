@@ -1,6 +1,10 @@
-Hello!<br /><br />
-You have been given an assignment for "{{giftexchange.title}}"!<br /><br />
-Please get a gift for {{assignment.first_name}} {{assignment.last_name}} by {{giftexchange.date}} costing no more than ${{giftexchange.spending_limit}}.
+Hello, {{giver.first_name}}!<br /><br />
+You have been given an assignment for the gift exchange "{{giftexchange.title}}"!<br /><br />
+Please get a gift for <b>{{assignment.first_name}} {{assignment.last_name}}</b> by {{giftexchange.date}} costing no more than ${{giftexchange.spending_limit}}.
+<br /><br />
+Gift exchange details:<br />
+Location: {{giftexchange.location}}<br />
+Description: {{giftexchange.description}}
 <br /><br />
 {{assignment.first_name}} likes:<br />
 {% if assignment.likes %}
