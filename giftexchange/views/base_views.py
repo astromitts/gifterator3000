@@ -29,7 +29,7 @@ class BaseView(View):
 		giftexchange = GiftExchange.objects.filter(pk=giftexchange_id).first()
 
 		if giftexchange:
-			participant_details = appuser.exchange_participant(giftexchange)
+			participant_details = Participant.objects.filter(giftexchange=giftexchange, email=appuser.djangouser.email)
 		return giftexchange, participant_details
 
 	def _full_url_reverse(self, request, url_name):
@@ -102,7 +102,6 @@ class AuthenticatedView(BaseView):
 		self.is_admin = False
 		self.djangouser = request.user
 		self.appuser = AppUser.get(djangouser=self.djangouser)
-
 		if 'giftexchange_id' in kwargs:
 			self.giftexchange = GiftExchange.objects.filter(pk=kwargs['giftexchange_id']).first()
 			self.giftexchange_id = self.giftexchange.pk
@@ -114,15 +113,10 @@ class GiftExchangeView(AuthenticatedView):
 	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangeView, self).setup(request, *args, **kwargs)
-
 		if not self.giftexchange:
 			return Http404('Gift exchange not found')
 		else:
 			self.participant_details = self.appuser.exchange_participant(self.giftexchange)
-
-		if not self.participant_details:
-			return Http404('User not a participant on this exchange')
-
 		if self.giftexchange:
 			self.is_admin = self.appuser in self.giftexchange.admin_appuser.all()
 
@@ -138,8 +132,6 @@ class GiftExchangeAdminView(AuthenticatedView):
 
 		if not self.giftexchange:
 			raise Http404('Gift exchange with id {} not found'.format(self.giftexchange_id))
-		if not self.participant_details:
-			raise Http404('User not a participant on this exchange')
 		if not self.appuser in self.giftexchange.admin_appuser.all():
 			raise Http404('User not an admin on this exchange')
 

@@ -13,7 +13,15 @@ from giftexchange.forms import (
 	RegisterForm,
 	FileUploadForm,
 )
-from giftexchange.models import AppInvitation, AppUser, Participant, ExchangeAssignment, MagicLink
+from giftexchange.models import (
+	AppInvitation,
+	AppUser,
+	Participant,
+	ExchangeAssignment,
+	MagicLink,
+	AdminInvitation,
+	oneweekfromnow
+)
 from giftexchange.utils import csv_lines_to_dict
 
 
@@ -42,7 +50,6 @@ class GiftExchangeEdit(GiftExchangeAdminView):
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
 				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Edit', None)
 			],
 			'form': None,
@@ -78,8 +85,7 @@ class ViewAssignments(GiftExchangeAdminView):
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Manage Assignments', None)
 			],
 			'giftexchange': self.giftexchange,
@@ -112,95 +118,32 @@ class ParticipantsList(GiftExchangeAdminView):
 	"""
 	def get(self, request, *args, **kwargs):
 		participants = self.giftexchange.participant_set.all()
-		pending_invitations = AppInvitation.objects.filter(giftexchange=self.giftexchange)
 
 		template = loader.get_template('giftexchange/manage_participants.html')
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Manage Participants', None)
 			],
 			'giftexchange': self.giftexchange,
 			'participants': participants,
-			'pending_invitations': pending_invitations,
 		}
 		return HttpResponse(template.render(context, request))
 
-
-class ParticipantsSearch(GiftExchangeAdminView):
-	""" List view of all gift exchange participants
-	"""
-	def get(self, request, *args, **kwargs):
-		template = loader.get_template('giftexchange/participants_add_search.html')
-		accepted_search_fields = ['email', 'first_name', 'last_name']
-		context = {'mediumwidth': True}
-		result_users = []
-		if any(field in request.GET.keys() for field in accepted_search_fields):
-			form = ParticipantSearchForm(request.GET)
-			qs = User.objects
-			if request.GET.get('email'):
-				qs = qs.filter(email__contains=request.GET['email'])
-			if request.GET.get('first_name'):
-				qs = qs.filter(first_name__contains=request.GET['first_name'])
-			if request.GET.get('email'):
-				qs = qs.filter(last_name__contains=request.GET['last_name'])
-			result_users = qs.all()
-		else:
-			form = ParticipantSearchForm()
-		context = {
-			'breadcrumbs': [
-				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Search Participants', None)
-			],
-			'form': form,
-			'mediumwidth': True,
-			'method': 'GET',
-			'result_users': result_users,
-			'giftexchange': self.giftexchange,
-		}
-		result_participants = []
-		return HttpResponse(template.render(context, request))
-
-
-class ParticipantsAddFromSearch(GiftExchangeAdminView):
-	""" Handler for adding a selected list off users to a given Gift Exchange
-	"""
-	def post(self, request, *args, **kwargs):
-		invited_appusers = []
-		created_count = 0
-		for field in request.POST.keys():
-			if field.startswith('invite_user_'):
-				appuser = AppUser.objects.get(pk=int(request.POST.get(field)))
-				invited_appusers.append(appuser)
-				participant, created = self.giftexchange.add_participant(appuser)
-				if created:
-					created_count += 1
-		if created_count > 0:
-			messages.success(request, 'Invited {} participants'.format(created_count))
-		else:
-			messages.error(request, 'No new invitations to make')
-		return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.id}))
-
-
-class InviteNewUser(GiftExchangeAdminView):
+class AddSingleUser(GiftExchangeAdminView):
 	""" Handler for inviting a new user to the App
 	"""
 	def setup(self, request, *args, **kwargs):
-		super(InviteNewUser, self).setup(request, *args, **kwargs)
+		super(AddSingleUser, self).setup(request, *args, **kwargs)
 		self.template = loader.get_template('giftexchange/generic_form.html')
 		self.return_url = reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})
 		self.context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Manage Participants', self.return_url),
-				('Invite a New User', None)
+				('Add a New Participant', None)
 			],
 			'mediumwidth': True,
 		}
@@ -213,53 +156,19 @@ class InviteNewUser(GiftExchangeAdminView):
 		form = RegisterForm(request.POST)
 		if form.is_valid():
 			participant_data = request.POST
-			app_invitation, participant_created, error_message = AppUser.invite(
+			particpant, participant_created = Participant.patch(
 				email=participant_data['email'],
 				first_name=participant_data['first_name'],
 				last_name=participant_data['last_name'],
 				giftexchange=self.giftexchange,
-				inviter=self.appuser
+				status='active'
 			)
-			if app_invitation:
-				magic_link = MagicLink(user_email=participant_data['email'])
-				magic_link.save()
-				app_invitation.send_invitation_for_new_user(magic_link.full_link(request))
-				messages.success(request, 'Invitation sent to {}'.format(request.POST['email']))
-				return redirect(self.return_url)
+			if participant_created:
+				messages.success(request, 'Added {} {} to Gift Exchange'.format(participant_data['first_name'], participant_data['last_name']))
+				return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 			else:
 				messages.error(request, error_message)
 				return redirect(reverse('giftexchange_invite_new_user', kwargs={'giftexchange_id': self.giftexchange.id}))
-
-
-class SetParticipantAdmin(ParticipantAdminAction):
-	""" Sets a participant of a gift exchange to an admin
-	"""
-	def post(self, request, *args, **kwargs):
-		self.giftexchange.admin_appuser.add(self.target_participant.appuser)
-		self.giftexchange.save()
-		messages.success(request, 'Participant added as admin')
-		return redirect(self.return_url)
-
-	def get(self, request, *args, **kwargs):
-		confirm_message = 'Add {} {} as an amdin of "{}"?'.format(
-			self.target_participant.appuser.djangouser.first_name,
-			self.target_participant.appuser.djangouser.last_name,
-			self.giftexchange.title
-		)
-		template = loader.get_template('giftexchange/confirm_action.html')
-
-		context = {
-			'breadcrumbs': [
-				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Manage Participants', self.return_url),
-				('Remove Participant', None)
-			],
-			'confirm_message': confirm_message,
-			'return_url': self.return_url,
-		}
-		return HttpResponse(template.render(context, request))
 
 
 class UnsetParticipantAdmin(ParticipantAdminAction):
@@ -282,8 +191,7 @@ class UnsetParticipantAdmin(ParticipantAdminAction):
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Manage Participants', self.return_url),
 				('Remove Participant', None)
 			],
@@ -300,7 +208,6 @@ class ParticipantUpload(GiftExchangeAdminView):
 		error = False
 		filehandle = request.FILES['file']
 		added_count = 0
-		invited_count = 0
 		if filehandle.multiple_chunks():
 			messages.error('File is too large. Please split it into smaller files for upload.')
 			return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
@@ -314,21 +221,16 @@ class ParticipantUpload(GiftExchangeAdminView):
 				messages.error(request, error)
 				return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 			for participant_data in parsed_participants:
-				app_invitation, participant_created, error_message = AppUser.invite(
+				particpant, participant_created = Participant.patch(
 					email=participant_data['email'],
 					first_name=participant_data['first_name'],
 					last_name=participant_data['last_name'],
 					giftexchange=self.giftexchange,
-					inviter=self.appuser
+					status='active'
 				)
-				if app_invitation:
-					magic_link = MagicLink(user_email=participant_data['email'])
-					magic_link.save()
-					app_invitation.send_invitation_for_new_user(magic_link.full_link(request))
-					invited_count += 1
 				if participant_created:
 					added_count += 1
-			messages.success(request, 'Added {} participants to Gift Exchange and invited {} users'.format(added_count, invited_count))
+			messages.success(request, 'Added {} participants to Gift Exchange'.format(added_count))
 			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 		# just redirect to the GET if it failed
 		return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
@@ -339,8 +241,7 @@ class ParticipantUpload(GiftExchangeAdminView):
 		context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
 				('Upload Participants', None)
 			],
@@ -361,8 +262,8 @@ class RemoveParticipant(ParticipantAdminAction):
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/confirm_action.html')
 		confirm_message = 'Remove {} {} from gift exchange "{}"?'.format(
-			self.target_participant.appuser.djangouser.first_name,
-			self.target_participant.appuser.djangouser.last_name,
+			self.target_participant.first_name,
+			self.target_participant.last_name,
 			self.giftexchange.title
 		)
 		context = {
@@ -392,18 +293,14 @@ class SendAssignmentEmail(GiftExchangeAdminView):
 		super(SendAssignmentEmail, self).setup(request, *args, **kwargs)
 		self.template = loader.get_template('giftexchange/confirm_action.html')
 		self.return_url = reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id})
-		if kwargs.get('target_appuser_id'):
-			self.target_appuser = AppUser.objects.get(pk=kwargs['target_appuser_id'])
-			participant = Participant.objects.get(appuser=self.target_appuser)
-			self.assignment = ExchangeAssignment.objects.get(giver=participant)
-			confirm_message = 'Send assignment email to {} {}?'.format(
-				self.assignment.giver.appuser.djangouser.first_name,
-				self.assignment.giver.appuser.djangouser.last_name
-			)
+		if kwargs.get('target_participant_id'):
+			self.participant = Participant.objects.get(pk=kwargs['target_participant_id'])
+			self.assignment = ExchangeAssignment.objects.get(giver=self.participant)
+			confirm_message = 'Send assignment email to {}?'.format(self.participant.name)
 			self.send_all = False
 		else:
 			self.send_all = True
-			confirm_message = 'Send assignment emails to all participants?'
+			confirm_message = 'Send assignment emails to ALL participants?'
 
 		self.context = {
 			'breadcrumbs': [
@@ -426,11 +323,8 @@ class SendAssignmentEmail(GiftExchangeAdminView):
 			target_participants = Participant.objects.filter(giftexchange=self.giftexchange, status='active').all()
 			success_message = 'Assignment emails sent to active users.'
 		else:
-			target_participants = [Participant.objects.get(appuser=self.target_appuser, giftexchange=self.giftexchange), ]
-			success_message = 'Assignment email sent to {} {}'.format(
-				self.assignment.giver.appuser.djangouser.first_name,
-				self.assignment.giver.appuser.djangouser.last_name
-			)
+			target_participants = [self.assignment.giver, ]
+			success_message = 'Assignment email sent to {}'.format(self.assignment.giver.name)
 		for participant in target_participants:
 			self._send_email_for_participant(participant)
 
@@ -440,3 +334,54 @@ class SendAssignmentEmail(GiftExchangeAdminView):
 		)
 		return redirect(self.return_url)
 
+
+class InviteAdmin(GiftExchangeAdminView):
+	def setup(self, request, *args, **kwargs):
+		super(InviteAdmin, self).setup(request, *args, **kwargs)
+		self.participant = Participant.objects.get(pk=kwargs['participant_id'])
+		self.template = loader.get_template('giftexchange/confirm_action.html')
+		self.return_url = reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk})
+		if self.participant.appuser:
+			confirm_message = 'Set {} as an admin on this gift exchange?'.format(self.participant.name)
+			self.needs_invite = False
+		else:
+			confirm_message = '{} does not have an account on Gifterator3k. Send them an invitation? (Once they accept, they will be added as an admin to this gift exchange)'.format(self.participant.name)
+			self.needs_invite = True
+		self.context = {
+			'breadcrumbs': [
+				('dashboard', reverse('dashboard')),
+				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Participants', self.return_url),
+				('Add Admin', None)
+			],
+			'confirm_message': confirm_message,
+			'return_url': self.return_url,
+		}
+
+	def get(self, request, *args, **kwargs):
+		return HttpResponse(self.template.render(self.context, request))
+
+	def post(self, request, *args, **kwargs):
+		if self.needs_invite:
+			magic_link = MagicLink(user_email=self.participant.email, expiration=oneweekfromnow())
+			magic_link.save()
+			admin_invitation = AdminInvitation(
+				inviter=self.appuser,
+				participant=self.participant,
+				giftexchange=self.giftexchange,
+				status='pending',
+				magic_link=magic_link
+			)
+			admin_invitation.save()
+			admin_invitation.send_invitation(request)
+			success_message = 'Sent an registration invitation to {}'.format(self.participant.name)
+		else:
+			self.giftexchange.admin_appuser.append(self.participant.appuser)
+			success_message = 'Set {} as an admin'.format(self.participant.name)
+
+		messages.success(
+			request,
+			success_message
+		)
+		return redirect(self.return_url)

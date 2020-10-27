@@ -20,11 +20,11 @@
 		<table class="table table-bordered">
 			{% for assignment in assignments %}
 				<tr>
-					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.giver.appuser.pk %}">{{assignment.giver.appuser}}</a></td>
+					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk participant_id=assignment.giver.pk %}">{{assignment.giver.name}}</a></td>
 					<td>gives to</td>
-					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk appuser_id=assignment.reciever.appuser.pk %}">{{assignment.reciever.appuser}}</a></td>
+					<td><a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk participant_id=assignment.reciever.pk %}">{{assignment.reciever.name}}</a></td>
 					{% if giftexchange.assignments_locked %}
-					<td><a href="{% url 'giftexchange_send_assignment_email' giftexchange_id=giftexchange.pk target_appuser_id=assignment.giver.appuser.pk %}"><button class="btn btn-primary btn-sm">{% if assignment.email_sent %}Re-send{%else%}Send{%endif%} Email</button></a></td>
+					<td><a href="{% url 'giftexchange_send_assignment_email' giftexchange_id=giftexchange.pk target_participant_id=assignment.giver.pk %}"><button class="btn btn-primary btn-sm">{% if assignment.email_sent %}Re-send{%else%}Send{%endif%} Email</button></a></td>
 					{% endif %}
 				</tr>
 			{% endfor %}

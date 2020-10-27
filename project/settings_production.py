@@ -19,3 +19,5 @@ SENDGRID_API_KEY = os.environ['SENDGRID_API_KEY']
 ALLOWED_HOSTS = ['gifterator3000.herokuapp.com', 'herokuapp.com', 'gifterator3k.com', 'www.gifterator3k.com']
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+SEND_EMAILS = True

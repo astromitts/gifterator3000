@@ -18,6 +18,10 @@ def twentyfourhoursfromnow():
 	return datetime.now() + timedelta(1)
 
 
+def oneweekfromnow():
+	return datetime.now() + timedelta(7)
+
+
 def generate_login_token(email):
 	token_base = '{}-{}-{}'.format(
 		email,
@@ -28,15 +32,18 @@ def generate_login_token(email):
 	return token_hash.hexdigest()
 
 def send_email(subject, html_body, to_emails):
-	message = Mail(
-		from_email=settings.FROM_ADDRESS,
-		to_emails=to_emails,
-		subject=subject,
-		html_content=html_body
-	)
-	sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
-	response = sg.send(message)
-	return response
+	if settings.SEND_EMAILS:
+		message = Mail(
+			from_email=settings.FROM_ADDRESS,
+			to_emails=to_emails,
+			subject=subject,
+			html_content=html_body
+		)
+		sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+		response = sg.send(message)
+		return response
+	else:
+		return True
 
 
 class AppUser(models.Model):
@@ -47,21 +54,29 @@ class AppUser(models.Model):
 	default_shipping_address = models.TextField(blank=True, null=True)
 
 	def __str__(self):
-		return '{} {} ({})'.format(self.djangouser.first_name, self.djangouser.last_name, self.djangouser.email)
+		return '{} {} ({})'.format(self.first_name, self.last_name, self.email)
 
 	@classmethod
-	def invite(cls, email, first_name, last_name, giftexchange, inviter):
-		djangouser, djangouser_created = AppUser.get_or_create_djangouser(email, first_name, last_name)
-		appuser_qs = AppUser.objects.filter(djangouser=djangouser)
+	def invite(cls, email, first_name, last_name, giftexchange, inviter, set_active=False, create_django_user=False):
+		if create_django_user:
+			djangouser, djangouser_created = AppUser.get_or_create_djangouser(email, first_name, last_name)
+		appuser_qs = AppUser.objects.filter(email=email)
 		if appuser_qs.exists():
 			appuser = appuser_qs.first()
 		else:
-			appuser = AppUser(djangouser=djangouser)
+			appuser = AppUser(
+				email=email,
+				first_name=first_name,
+				last_name=last_name
+			)
 			appuser.save()
 		participant, participant_created = Participant.get_or_create(
 			appuser,
 			giftexchange=giftexchange
 		)
+		if set_active:
+			participant.status = 'active'
+			participant.save()
 		invitation_qs = AppInvitation.objects.filter(giftexchange=giftexchange, invitee=appuser)
 		if invitation_qs.exists():
 			return None, None, 'invitation already exists'
@@ -78,14 +93,19 @@ class AppUser(models.Model):
 		return self in giftexchange.admin_appuser.all()
 
 	def exchange_participant(self, giftexchange):
-		participant_exists = Participant.objects.filter(appuser=self, giftexchange=giftexchange).exists()
+		participant_exists = Participant.objects.filter(email=self.djangouser.email, giftexchange=giftexchange).exists()
 		if participant_exists:
 			return Participant.objects.get(appuser=self, giftexchange=giftexchange)
 		return False
 
 	@classmethod
-	def create(cls, djangouser, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None):
-		appuser = cls(djangouser=djangouser)
+	def create(cls, first_name, last_name, email, djangouser=None, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None):
+		appuser = cls(
+			first_name=first_name,
+			last_name=last_name,
+			email=email,
+			djangouser=djangouser
+		)
 		if likes:
 			appuser.default_likes = likes
 		if dislikes:
@@ -146,11 +166,11 @@ class MagicLink(models.Model):
 	def tmp_password(self):
 		return generate_login_token(self.user_email)
 
-	def full_link(self, request):
+	def full_link(self, request, pathname='login'):
 		return '{}://{}{}?token={}&email={}'.format(
 			request.scheme,
 			request.get_host(),
-			reverse('login'),
+			reverse(pathname),
 			self.token,
 			self.user_email
 		)
@@ -245,8 +265,6 @@ class GiftExchange(models.Model):
 		)
 		new_instance.save()
 		new_instance.admin_appuser.add(appuser)
-		participant = Participant(giftexchange=new_instance, appuser=appuser, status='active')
-		participant.save()
 		return new_instance
 
 	@classmethod
@@ -278,20 +296,19 @@ class GiftExchange(models.Model):
 
 		participants = self.participant_set.filter(status='active').all()
 		assignments = []
-		reciever_appusers = [starting_giver.appuser, ]
-
+		reciever_appusers = [starting_giver, ]
 		while len(assignments) <= self.participant_set.filter(status='active').all().count() - 2:
-			exclusions = reciever_appusers + [current_giver.appuser]
-			random_reciever_qs = self.participant_set.filter(status='active').exclude(appuser__in=exclusions)
+			exclusions = reciever_appusers + [current_giver]
+			random_reciever_qs = self.participant_set.filter(status='active').exclude(pk__in=[ex.pk for ex in exclusions])
 			random_reciever = random_reciever_qs.order_by('?').first()
 
 			if random_reciever:
-				assignments.append((current_giver.appuser, random_reciever.appuser))
-				reciever_appusers.append(random_reciever.appuser)
+				assignments.append((current_giver, random_reciever))
+				reciever_appusers.append(random_reciever)
 				current_giver = random_reciever
 
 		final_giver = current_giver
-		assignments.append((final_giver.appuser, starting_giver.appuser))
+		assignments.append((final_giver, starting_giver))
 		return assignments
 
 	def _verify_closed_loop(self, assignments):
@@ -333,9 +350,7 @@ class GiftExchange(models.Model):
 
 		# print("Took {} tries".format(tries))
 		assignment_objects = []
-		for giver_appuser, reciever_appuser in assignments:
-			giver_participant = Participant.objects.get(appuser=giver_appuser, giftexchange=self)
-			reciever_participant = Participant.objects.get(appuser=reciever_appuser, giftexchange=self)
+		for giver_participant, reciever_participant in assignments:
 			new_assignment = ExchangeAssignment(
 				giftexchange=self,
 				giver=giver_participant,
@@ -351,7 +366,6 @@ class GiftExchange(models.Model):
 
 
 class Participant(models.Model):
-	appuser = models.ForeignKey(AppUser, on_delete=models.CASCADE)
 	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
 	status = models.CharField(
 		max_length=10,
@@ -362,11 +376,27 @@ class Participant(models.Model):
 			('active', 'active'),
 		]
 	)
+	first_name = models.CharField(max_length=100)
+	last_name = models.CharField(max_length=100)
+	email = models.EmailField()
 	likes = models.TextField(blank=True, null=True)
 	dislikes = models.TextField(blank=True, null=True)
 	allergies_sensitivities = models.TextField(blank=True, null=True)
 	shipping_address = models.TextField(blank=True, null=True)
 	gift = models.TextField(blank=True, null=True)
+
+	@property
+	def name(self):
+		return '{} {}'.format(self.first_name, self.last_name)
+
+
+	@property
+	def appuser(self):
+		djangouser = User.objects.filter(email=self.email).first()
+		if djangouser:
+			return AppUser.objects.filter(djangouser=djangouser).first()
+		return None
+
 
 	@property
 	def get_shipping_address(self):
@@ -376,39 +406,44 @@ class Participant(models.Model):
 		self.gift = gift_value
 		self.save()
 
-	def update(self, likes, dislikes, allergies_sensitivities, shipping_address):
+	def update(self, first_name, last_name, email, likes, dislikes, allergies_sensitivities, shipping_address):
 		self.likes = likes
 		self.dislikes = dislikes
 		self.allergies_sensitivities = allergies_sensitivities
 		self.shipping_address = shipping_address
+		self.first_name = first_name
+		self.last_name = last_name
+		self.email = email
 		self.save()
 
-
 	@classmethod
-	def get_or_create(cls, appuser, giftexchange, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None):
+	def patch(cls, first_name, last_name, email, giftexchange, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, status=None):
 		created = False
-		existing_participant = cls.objects.filter(appuser=appuser, giftexchange=giftexchange).exists()
+		existing_participant = cls.objects.filter(email=email, giftexchange=giftexchange).exists()
 		if existing_participant:
-			participant = cls.objects.get(appuser=appuser, giftexchange=giftexchange)
+			participant = cls.objects.get(email=email, giftexchange=giftexchange)
 			created = False
 		else:
 			participant = cls(
-				appuser=appuser,
+				email=email,
 				giftexchange=giftexchange,
-				likes=appuser.default_likes,
-				dislikes=appuser.default_dislikes,
-				allergies_sensitivities=appuser.default_allergies_sensitivities
 			)
-			if likes:
-				participant.likes = likes
-			if dislikes:
-				participant.dislikes = dislikes
-			if allergies_sensitivities:
-				participant.allergies_sensitivities = allergies_sensitivities
-			if shipping_address:
-				participant.shipping_address = shipping_address
-			participant.save()
 			created = True
+
+		participant.first_name = first_name
+		participant.last_name = last_name
+		if likes:
+			participant.likes = likes
+		if dislikes:
+			participant.dislikes = dislikes
+		if allergies_sensitivities:
+			participant.allergies_sensitivities = allergies_sensitivities
+		if shipping_address:
+			participant.shipping_address = shipping_address
+		if status:
+			participant.status = status
+
+		participant.save()
 		return participant, created
 
 	def __str__(self):
@@ -439,11 +474,36 @@ class ExchangeAssignment(models.Model):
 		email = send_email(
 		    subject=subject,
 		    html_body=formatted_body,
-		    to_emails=self.giver.appuser.djangouser.email,
+		    to_emails=self.giver.email,
 		)
 		email.content_subtype = 'html'
 		self.email_sent = True
 		self.save()
+
+
+class AdminInvitation(models.Model):
+	inviter = models.ForeignKey(AppUser, on_delete=models.CASCADE)
+	participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
+	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
+	status = models.CharField(max_length=10, default='pending', choices=[('sent', 'sent'), ('pending', 'pending'), ('accepted', 'accepted')])
+	magic_link = models.ForeignKey(MagicLink, null=True, on_delete=models.SET_NULL)
+
+	def send_invitation(self, request):
+		subject = 'You have been invited to Gifterator3k'
+		formatted_body = render_to_string(
+			'giftexchange/emails/invite_admin.html',
+			context={
+				'inviter': self.inviter.djangouser,
+				'giftexchange': self.giftexchange,
+				'link_url': self.magic_link.full_link(request, 'register'),
+			}
+		)
+		email_result = send_email(
+			subject=subject,
+			to_emails=self.participant.email,
+			html_body=formatted_body
+		)
+
 
 class AppInvitation(models.Model):
 	inviter = models.ForeignKey(AppUser, related_name='inviter', on_delete=models.CASCADE)

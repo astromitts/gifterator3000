@@ -9,7 +9,7 @@
 	<div class="col-6">
 	<div class="card">
 		<div class="card-header">
-	    	My Details
+	    	Details for: {{participant_details.first_name}} {{participant_details.last_name}}
 	  </div>
 	  <div class="card-body">
 	  		<table class="table">
@@ -33,7 +33,7 @@
 	  </div>
 	  <div class="card-footer">
 	  	{% if not giftexchange.assignments_locked %}
-			<a href="{% url 'giftexchange_detail_edit' giftexchange_id=giftexchange.pk %}"><button class="btn btn-primary">Edit</button></a>
+			<a href="{% url 'giftexchange_detail_edit' giftexchange_id=giftexchange.pk participant_id=participant_details.pk %}"><button class="btn btn-primary">Edit</button></a>
 		{% else %}
 			Assignments are locked - details no longer editable.
 		{% endif %}

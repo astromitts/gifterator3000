@@ -75,55 +75,15 @@ class Dashboard(AuthenticatedView):
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/dashboard.html')
 		today = date.today()
-		current_participation = Participant.objects.filter(appuser=self.appuser, status='active')
-		pending_participation = Participant.objects.filter(appuser=self.appuser, status='invited')
-		current_exchanges = []
-		pending_exchanges = []
-		past_exchanges = []
-
-		for cp in current_participation:
-			if cp.giftexchange.date >= today:
-				current_exchanges.append(cp.giftexchange)
-			else:
-				past_exchanges.append(cp.giftexchange)
-
-		for cp in pending_participation:
-			if cp.giftexchange.date >= today and not cp.giftexchange.assignments_locked:
-				pending_exchanges.append(cp.giftexchange)
+		giftexchanges = self.appuser.giftexchange_set.all()
 
 		context = {
 			'breadcrumbs': [],
-			'current_exchanges': current_exchanges,
-			'invitations': pending_exchanges,
-			'past_exchanges': past_exchanges,
+			'giftexchanges': giftexchanges,
 			'appuser': self.appuser,
 		}
 
 		return HttpResponse(template.render(context, request))
-
-
-class AcceptGiftExchangeInvitation(AuthenticatedView):
-	def get(self, request, *args, **kwargs):
-		giftexchange, participant_details = self._get_participant_and_exchange(self.appuser, self.giftexchange_id)
-		participant_details.status = 'active'
-		participant_details.save()
-		participant_details.update(
-			likes=self.appuser.default_likes,
-			dislikes=self.appuser.default_dislikes,
-			allergies_sensitivities=self.appuser.default_allergies_sensitivities,
-			shipping_address=self.appuser.default_shipping_address
-		)
-		messages.success(request, 'You have been added to "{}"'.format(self.giftexchange.title))
-		return redirect(reverse('dashboard'))
-
-
-class DeclineGiftExchangeInvitation(AuthenticatedView):
-	def get(self, request, *args, **kwargs):
-		giftexchange, participant_details = self._get_participant_and_exchange(self.appuser, self.giftexchange_id)
-		participant_details.status = 'declined'
-		participant_details.save()
-		messages.success(request, 'You have declined "{}"'.format(self.giftexchange.title))
-		return redirect(reverse('dashboard'))
 
 
 class CreateGiftExchange(AuthenticatedView):
@@ -165,26 +125,15 @@ class GiftExchangePersonalDetail(GiftExchangeView):
 	""" Display page for your details on a gift exchange
 	"""
 	def get(self, request, *args, **kwargs):
-		if not kwargs.get('appuser_id'):
-			appuser = AppUser.get(djangouser=request.user)
-			giftexchange, participant_details = self._get_participant_and_exchange(appuser, self.giftexchange_id)
-			breadcrumbs = [
-				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, None)
-			]
-		else:
-			if not self.is_admin:
-				return Http404('User not an admin on this exchange')
-
-			appuser = AppUser.objects.get(pk=kwargs.get('appuser_id'))
-			giftexchange, participant_details = self._get_participant_and_exchange(appuser, self.giftexchange_id)
-			breadcrumbs = [
-				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Admin', reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Manage Assignments', reverse('giftexchange_manage_assignments', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('{} {}'.format(appuser.djangouser.first_name, appuser.djangouser.last_name), None)
-			]
+		if not self.is_admin:
+			return Http404('User not an admin on this exchange')
+		participant_details = Participant.objects.get(pk=kwargs['participant_id'], giftexchange=self.giftexchange)
+		breadcrumbs = [
+			('dashboard', reverse('dashboard')),
+			(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+			('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
+			('{} {}'.format(participant_details.first_name, participant_details.last_name), None)
+		]
 
 		assignment_details = None
 		if self.giftexchange.assignments_locked:
@@ -195,10 +144,10 @@ class GiftExchangePersonalDetail(GiftExchangeView):
 		context = {
 			'breadcrumbs': breadcrumbs,
 			'admin_user': self.is_admin,
-			'appuser': appuser,
+			'appuser': self.appuser,
 			'participant_details': participant_details,
 			'assignment_details': assignment_details,
-			'giftexchange': giftexchange
+			'giftexchange': self.giftexchange
 		}
 		return HttpResponse(template.render(context, request))
 
@@ -273,33 +222,41 @@ class GiftExchangePersonalDetailEdit(GiftExchangeView):
 	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangePersonalDetailEdit, self).setup(request, *args, **kwargs)
+		self.participant = Participant.objects.get(pk=kwargs['participant_id'])
 		self.template = loader.get_template('giftexchange/generic_form.html')
 		self.context = {
 			'breadcrumbs': [
 				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Edit My Details', None),
+				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
+				('{}'.format(self.participant.name), reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': self.participant.pk})),
+				('Edit Participant Details', None),
 			],
 			'form': None,
 		}
 
 	def post(self, request, *args, **kwargs):
 		form = ParticipantDetailsForm(request.POST)
+		participant_details = self.participant
 		if form.is_valid():
-			self.participant_details.update(
+			participant_details.update(
+				first_name=request.POST['first_name'],
+				last_name=request.POST['last_name'],
+				email=request.POST['email'],
 				likes=request.POST['likes'],
 				dislikes=request.POST['dislikes'],
 				allergies_sensitivities=request.POST['allergies_sensitivities'],
 				shipping_address=request.POST['shipping_address']
 			)
-			messages.success(request, 'Updated your details for this gift exchange')
-			return redirect(reverse('giftexchange_detail', kwargs={'giftexchange_id': self.giftexchange_id}))
+			messages.success(request, 'Updated details for this gift exchange')
+			return redirect(reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': participant_details.pk}))
 		else:
 			form = ParticipantDetailsForm(instance=self.participant_details)
 			self.context['form'] = form
 			return HttpResponse(self.template.render(self.context, request))
 
 	def get(self, request, *args, **kwargs):
-		form = ParticipantDetailsForm(instance=self.participant_details)
+		participant_details = self.participant
+		form = ParticipantDetailsForm(instance=participant_details)
 		self.context['form'] = form
 		return HttpResponse(self.template.render(self.context, request))

@@ -9,7 +9,7 @@ from django.views import View
 
 from giftexchange.views.base_views import AuthenticatedView, UnAuthenticatedView
 from giftexchange.forms import LoginForm, RegisterForm
-from giftexchange.models import AppUser, AppInvitation, MagicLink
+from giftexchange.models import AppUser, AppInvitation, MagicLink, AdminInvitation
 
 from datetime import datetime
 
@@ -21,10 +21,29 @@ class RegistrationHandler(UnAuthenticatedView):
 		super(RegistrationHandler, self).setup(request, *args, **kwargs)
 		self.template = loader.get_template('giftexchange/generic_form.html')
 		self.context = {'mediumwidth': True}
+		if request.GET.get('token') and request.GET.get('email'):
+			self.token = request.GET.get('token')
+			self.invite_email = request.GET.get('email')
+			self.referral = True
+			magic_link = MagicLink.objects.filter(token=self.token, user_email=self.invite_email)
+			self.magic_link = magic_link.filter(expiration__gte=datetime.now()).first()
+			if self.magic_link:
+				self.admin_invitation = AdminInvitation.objects.get(magic_link=self.magic_link)
+				messages.success(
+					request,
+					'You have been invited to join the gift exchange "{}" as an admin. Complete registration below:'.format(self.admin_invitation.giftexchange.title)
+				)
+			else:
+				messages.error(request, 'The login token provided was not found. Perhaps it is expired?')
+		else:
+			self.token = None
+			self.invite_email = None
+			self.admin_invitation = None
+
 
 	def get(self, request, *args, **kwargs):
 		super(RegistrationHandler, self).get(request, *args, **kwargs)
-		self.context['form'] = RegisterForm()
+		self.context['form'] = RegisterForm(initial={'email': self.invite_email})
 		return HttpResponse(self.template.render(self.context, request))
 
 	def post(self, request, *args, **kwargs):
@@ -52,6 +71,12 @@ class RegistrationHandler(UnAuthenticatedView):
 						invitation.giftexchange.add_participant(appuser)
 						invitation.status = 'accepted'
 						invitation.save()
+				if self.admin_invitation:
+					self.admin_invitation.status = 'accepted'
+					self.admin_invitation.save()
+					self.magic_link.delete()
+					self.admin_invitation.giftexchange.admin_appuser.add(appuser)
+					self.admin_invitation.giftexchange.save()
 				messages.success(request, 'You registered to Gifterator 3000! Please confirm your email address and login to continue!')
 				return redirect(reverse('login'))
 		else:
