@@ -14,14 +14,8 @@ DATABASES = {
     }
 }
 
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_HOST_USER = os.environ['GMAIL_USER']
-EMAIL_HOST_PASSWORD = os.environ['GMAIL_PASS']
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-
 SENDGRID_API_KEY = os.environ['SENDGRID_API_KEY']
 
-ALLOWED_HOSTS = ['gifterator3000.herokuapp.com', 'herokuapp.com', ]
+ALLOWED_HOSTS = ['gifterator3000.herokuapp.com', 'herokuapp.com', 'gifterator3k.com']
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
