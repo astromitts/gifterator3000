@@ -16,7 +16,7 @@ from giftexchange.models import Participant, GiftExchange
 class ParticipantDetailsForm(ModelForm):
 	class Meta:
 		model = Participant
-		fields = ['first_name', 'last_name', 'email', 'likes', 'dislikes', 'allergies_sensitivities', 'shipping_address']
+		fields = ['first_name', 'last_name', 'email', 'likes', 'dislikes', 'allergies_sensitivities', 'shipping_address', 'additional_info']
 
 
 class GiftExchangeDetailsForm(ModelForm):
@@ -58,6 +58,7 @@ class ProfileForm(Form):
 	default_dislikes = CharField(widget=Textarea, required=False)
 	default_allergies_and_sensitivites = CharField(widget=Textarea, required=False)
 	default_shipping_address = CharField(widget=Textarea, required=False)
+	default_additional_info = CharField(widget=Textarea, required=False)
 
 
 class RegisterForm(Form):

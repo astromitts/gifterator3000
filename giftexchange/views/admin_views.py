@@ -211,7 +211,7 @@ class ParticipantUpload(GiftExchangeAdminView):
 			messages.error('File is too large. Please split it into smaller files for upload.')
 			return redirect(reverse('giftexchange_upload_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 		else:
-			expected_header = ['first_name', 'last_name', 'email', 'shipping_address', 'likes', 'dislikes', 'allergies']
+			expected_header = ['first_name', 'last_name', 'email', 'shipping_address', 'likes', 'dislikes', 'allergies', 'other']
 			fs = FileSystemStorage()
 			filename = fs.save('user-uploads/appuserupload-{}-{}'.format(self.appuser.pk, filehandle.name), filehandle)
 			parsed_participants, error = csv_lines_to_dict(expected_header, filename)
@@ -228,6 +228,7 @@ class ParticipantUpload(GiftExchangeAdminView):
 					dislikes=participant_data['dislikes'],
 					allergies_sensitivities=participant_data['allergies'],
 					shipping_address=participant_data['shipping_address'],
+					additional_info=participant_data['other'],
 					giftexchange=self.giftexchange,
 					status='active'
 				)

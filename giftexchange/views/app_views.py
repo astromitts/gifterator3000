@@ -241,7 +241,8 @@ class GiftExchangePersonalDetailEdit(GiftExchangeView):
 				likes=request.POST['likes'],
 				dislikes=request.POST['dislikes'],
 				allergies_sensitivities=request.POST['allergies_sensitivities'],
-				shipping_address=request.POST['shipping_address']
+				shipping_address=request.POST['shipping_address'],
+				additional_info=request.POST['additional_info']
 			)
 			messages.success(request, 'Updated details for this gift exchange')
 			return redirect(reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': participant_details.pk}))

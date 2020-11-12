@@ -52,6 +52,7 @@ class AppUser(models.Model):
 	default_dislikes = models.TextField(blank=True, null=True)
 	default_allergies_sensitivities = models.TextField(blank=True, null=True)
 	default_shipping_address = models.TextField(blank=True, null=True)
+	default_additional_info = models.TextField(blank=True, null=True)
 
 	def __str__(self):
 		return '{} {} ({})'.format(self.first_name, self.last_name, self.email)
@@ -99,7 +100,7 @@ class AppUser(models.Model):
 		return False
 
 	@classmethod
-	def create(cls, first_name, last_name, email, djangouser=None, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None):
+	def create(cls, first_name, last_name, email, djangouser=None, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, additional_info=None):
 		appuser = cls(
 			first_name=first_name,
 			last_name=last_name,
@@ -114,6 +115,9 @@ class AppUser(models.Model):
 			appuser.default_allergies_sensitivities = allergies_sensitivities
 		if shipping_address:
 			appuser.default_shipping_address = shipping_address
+		if additional_info:
+			appuser.default_additional_info = additional_info
+
 		appuser.save()
 		return appuser
 
@@ -391,6 +395,7 @@ class Participant(models.Model):
 	dislikes = models.TextField(blank=True, null=True)
 	allergies_sensitivities = models.TextField(blank=True, null=True)
 	shipping_address = models.TextField(blank=True, null=True)
+	additional_info = models.TextField(blank=True, null=True)
 	gift = models.TextField(blank=True, null=True)
 
 	@property
@@ -414,7 +419,7 @@ class Participant(models.Model):
 		self.gift = gift_value
 		self.save()
 
-	def update(self, first_name, last_name, email, likes, dislikes, allergies_sensitivities, shipping_address):
+	def update(self, first_name, last_name, email, likes, dislikes, allergies_sensitivities, shipping_address, additional_info=None):
 		self.likes = likes
 		self.dislikes = dislikes
 		self.allergies_sensitivities = allergies_sensitivities
@@ -422,10 +427,11 @@ class Participant(models.Model):
 		self.first_name = first_name
 		self.last_name = last_name
 		self.email = email
+		self.additional_info = additional_info
 		self.save()
 
 	@classmethod
-	def patch(cls, first_name, last_name, email, giftexchange, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, status=None):
+	def patch(cls, first_name, last_name, email, giftexchange, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, status=None, additional_info=None):
 		created = False
 		existing_participant = cls.objects.filter(email=email, giftexchange=giftexchange).exists()
 		if existing_participant:
@@ -450,6 +456,8 @@ class Participant(models.Model):
 			participant.shipping_address = shipping_address
 		if status:
 			participant.status = status
+		if additional_info:
+			participant.additional_info = additional_info
 
 		participant.save()
 		return participant, created
