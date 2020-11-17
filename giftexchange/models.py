@@ -463,7 +463,7 @@ class Participant(models.Model):
 		return participant, created
 
 	def __str__(self):
-		return '{} // {}'.format(self.giftexchange.title, self.appuser)
+		return '{} // {}'.format(self.giftexchange.title, self.name)
 
 
 class ExchangeAssignment(models.Model):
