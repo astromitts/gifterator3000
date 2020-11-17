@@ -476,7 +476,13 @@ class ExchangeAssignment(models.Model):
 		unique_together = ['giftexchange', 'giver', 'reciever']
 
 	def __str__(self):
-		return '{} // {} -> {}'.format(self.giftexchange, self.giver, self.reciever)
+		return '{} // {} {} -> {} {}'.format(
+			self.giftexchange,
+			self.giver.first_name,
+			self.giver.last_name,
+			self.reciever.first_name,
+			self.reciever.last_name,
+		)
 
 	def send_assignment_email(self):
 		subject = 'You have been given an assignment for "{}"'.format(self.giftexchange.title)
