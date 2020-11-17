@@ -55,7 +55,7 @@ class AppUser(models.Model):
 	default_additional_info = models.TextField(blank=True, null=True)
 
 	def __str__(self):
-		return '{} {} ({})'.format(self.first_name, self.last_name, self.email)
+		return '{} {} ({})'.format(self.djangouser.email)
 
 	@classmethod
 	def invite(cls, email, first_name, last_name, giftexchange, inviter, set_active=False, create_django_user=False):
