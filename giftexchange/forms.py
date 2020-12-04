@@ -44,6 +44,10 @@ class LoginForm(ModelForm):
         fields = ['email']
 
 
+class LoginTokenForm(Form):
+	magic_login_token = CharField()
+
+
 class GiftForm(ModelForm):
 	class Meta:
 		model = Participant

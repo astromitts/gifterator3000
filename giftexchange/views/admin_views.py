@@ -155,20 +155,21 @@ class AddSingleUser(GiftExchangeAdminView):
 		form = RegisterForm(request.POST)
 		if form.is_valid():
 			participant_data = request.POST
-			particpant, participant_created = Participant.patch(
+			participant, participant_created = Participant.patch(
 				email=participant_data['email'],
 				first_name=participant_data['first_name'],
 				last_name=participant_data['last_name'],
 				giftexchange=self.giftexchange,
 				status='active'
 			)
-			if participant_created:
-				messages.success(request, 'Added {} {} to Gift Exchange'.format(participant_data['first_name'], participant_data['last_name']))
-				return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
-			else:
-				messages.error(request, error_message)
-				return redirect(reverse('giftexchange_invite_new_user', kwargs={'giftexchange_id': self.giftexchange.id}))
-
+			djangouser, djangouser_created = AppUser.get_or_create_djangouser(
+				email=participant.email,
+				first_name=participant.first_name,
+				last_name=participant.last_name
+			)
+			AppUser.get_or_create(djangouser=djangouser)
+			messages.success(request, 'Added {} {} to Gift Exchange'.format(participant_data['first_name'], participant_data['last_name']))
+			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 
 class UnsetParticipantAdmin(ParticipantAdminAction):
 	""" Removes a participant of a gift exchange as an admin

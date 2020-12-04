@@ -109,7 +109,9 @@ class CreateGiftExchange(AuthenticatedView):
 				spending_limit=request.POST['spending_limit'],
 				location=request.POST['location'],
 				date=request.POST['date'],
-				appuser=self.appuser
+				appuser=self.appuser,
+				ship_gifts_allowed=request.POST.get('ship_gifts_allowed', 'off') == 'on',
+
 			)
 			return redirect(reverse('dashboard'))
 		else:

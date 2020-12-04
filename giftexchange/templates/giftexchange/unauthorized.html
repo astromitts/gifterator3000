@@ -1,0 +1,12 @@
+{% extends 'giftexchange/base.html' %}
+
+{% block page_content %}
+	<div class="row">
+		<div class="col">
+			<div class="alert alert-danger">
+				You are not authorized to access this page!<br />
+				Perhaps you need to <a href="{% url 'login' %}">login</a>?
+			</div>
+		</div>
+	</div>
+{% endblock %}

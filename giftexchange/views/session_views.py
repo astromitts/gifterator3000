@@ -8,8 +8,14 @@ from django.urls import reverse
 from django.views import View
 
 from giftexchange.views.base_views import AuthenticatedView, UnAuthenticatedView
-from giftexchange.forms import LoginForm, RegisterForm
-from giftexchange.models import AppUser, AppInvitation, MagicLink, AdminInvitation
+from giftexchange.forms import LoginForm, LoginTokenForm, RegisterForm
+from giftexchange.models import (
+	oneweekfromnow,
+	AppUser,
+	AppInvitation,
+	MagicLink,
+	AdminInvitation
+)
 
 from datetime import datetime
 
@@ -115,42 +121,68 @@ class LoginHandler(UnAuthenticatedView):
 				login(request, user)
 				messages.success(request, 'Welcome! You are logged in!')
 				magic_link.delete()
+				request.session['user_is_authenticated'] = True
 				return redirect(reverse('dashboard'))
 			else:
 				messages.error(request, 'Could not validate your login token. Please request a new one.')
 
 		self.context['form'] = LoginForm()
-		self.context['submit_text'] = 'Email me a login link'
+		self.context['submit_text'] = 'Email me a magic token'
 		return HttpResponse(self.template.render(self.context, request))
 
 	def post(self, request, *args, **kwargs):
 		self.template = loader.get_template('giftexchange/generic_form.html')
-		data = request.POST.copy()
-		form = LoginForm(data)
-		if form.is_valid():
-			try:
-				user = User.objects.get(email=data['email'])
-			except User.DoesNotExist as exc:
-				context = {
-					'form': form
-				}
-				messages.error(request, 'Invalid email.')
-				return HttpResponse(self.template.render(context, request))
+		if 'email' in request.POST:
+			data = request.POST.copy()
+			form = LoginForm(data)
+			if form.is_valid():
+				try:
+					user = User.objects.get(email=data['email'])
+				except User.DoesNotExist as exc:
+					context = {
+						'form': form
+					}
+					messages.error(request, 'Invalid email.')
+					return HttpResponse(self.template.render(context, request))
 
-			magic_link = MagicLink(user_email=data['email'])
-			magic_link.save()
-			magic_link.send_link_email(request)
-			self.context['form'] = form
-			self.context['submit_text'] = 'Email me a login link'
-			messages.success(request, 'Link sent. Check your email.')
-			return HttpResponse(self.template.render(self.context, request))
-		else:
-			self.context['form'] = form
-			return HttpResponse(self.template.render(self.context, request))
+				magic_link = MagicLink(user_email=data['email'], expiration=oneweekfromnow())
+				magic_link.save()
+				magic_link.send_link_email(request)
+
+				self.context['form'] = LoginTokenForm()
+				self.context['submit_text'] = 'Log in with your magic token'
+				messages.success(request, 'Token sent. Check your email.')
+				request.session['email'] = data['email']
+				return HttpResponse(self.template.render(self.context, request))
+			else:
+				self.context['form'] = form
+				return HttpResponse(self.template.render(self.context, request))
+		elif 'magic_login_token' in request.POST:
+			data = request.POST.copy()
+			form = LoginTokenForm(data)
+			if form.is_valid():
+				magic_link_qs = MagicLink.objects.filter(
+					token=request.POST['magic_login_token'],
+					expiration__gte=datetime.now(),
+					user_email=request.session['email']
+				)
+				if magic_link_qs.exists():
+					magic_link = magic_link_qs.first()
+					user = User.objects.get(email=request.session['email'])
+					login(request, user)
+					messages.success(request, 'Welcome! You are logged in!')
+					magic_link.delete()
+					request.session['user_is_authenticated'] = True
+					return redirect(reverse('dashboard'))
+				else:
+					messages.error(request, 'Could not validate your login token. Please request a new one.')
+					self.context['form'] = form
+					return HttpResponse(self.template.render(self.context, request))
 
 
 def logout_handler(request):
 	""" View for log out
 	"""
 	logout(request)
+	request.session['user_is_authenticated'] = False
 	return redirect(reverse('login'))

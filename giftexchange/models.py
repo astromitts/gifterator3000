@@ -100,13 +100,8 @@ class AppUser(models.Model):
 		return False
 
 	@classmethod
-	def create(cls, first_name, last_name, email, djangouser=None, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, additional_info=None):
-		appuser = cls(
-			first_name=first_name,
-			last_name=last_name,
-			email=email,
-			djangouser=djangouser
-		)
+	def create(cls, djangouser=None, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, additional_info=None):
+		appuser = cls(djangouser=djangouser)
 		if likes:
 			appuser.default_likes = likes
 		if dislikes:
@@ -146,7 +141,7 @@ class AppUser(models.Model):
 			created = False
 			appuser = cls.objects.get(djangouser=djangouser)
 		else:
-			appuser = cls.create(djangouser)
+			appuser = cls.create(djangouser=djangouser)
 			created = True
 		return appuser, created
 
@@ -165,7 +160,7 @@ class AppUser(models.Model):
 class MagicLink(models.Model):
 	expiration = models.DateTimeField(default=twentyfourhoursfromnow)
 	user_email = models.EmailField()
-	token = models.CharField(max_length=64)
+	token = models.CharField(max_length=64, blank=True)
 
 	def tmp_password(self):
 		return generate_login_token(self.user_email)
@@ -267,13 +262,14 @@ class GiftExchange(models.Model):
 		self.save()
 
 	@classmethod
-	def create(cls, title, date, location, description, spending_limit, appuser):
+	def create(cls, title, date, location, description, spending_limit, appuser, ship_gifts_allowed):
 		new_instance = cls(
 			title=title,
 			date=date,
 			location=location,
 			description=description,
-			spending_limit=spending_limit
+			spending_limit=spending_limit,
+			ship_gifts_allowed=ship_gifts_allowed
 		)
 		new_instance.save()
 		new_instance.admin_appuser.add(appuser)

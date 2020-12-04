@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'giftexchange.middleware.request_validation',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -128,3 +129,7 @@ FROM_ADDRESS = 'admin@gifterator3k.com'
 HOST_ALIAS = None
 
 TEST_EMAIL_DOMAIN = 'gifterator3ktest.com'
+
+SEND_EMAILS = False
+
+ENVIRONMENT = 'prod'
