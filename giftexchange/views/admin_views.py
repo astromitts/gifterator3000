@@ -155,19 +155,20 @@ class AddSingleUser(GiftExchangeAdminView):
 		form = RegisterForm(request.POST)
 		if form.is_valid():
 			participant_data = request.POST
+			djangouser, djangouser_created = AppUser.get_or_create_djangouser(
+				email=participant_data['email'],
+				first_name=participant_data['first_name'],
+				last_name=participant_data['last_name']
+			)
+			appuser, appuser_created = AppUser.get_or_create(djangouser=djangouser)
 			participant, participant_created = Participant.patch(
+				appuser=appuser,
 				email=participant_data['email'],
 				first_name=participant_data['first_name'],
 				last_name=participant_data['last_name'],
 				giftexchange=self.giftexchange,
 				status='active'
 			)
-			djangouser, djangouser_created = AppUser.get_or_create_djangouser(
-				email=participant.email,
-				first_name=participant.first_name,
-				last_name=participant.last_name
-			)
-			AppUser.get_or_create(djangouser=djangouser)
 			messages.success(request, 'Added {} {} to Gift Exchange'.format(participant_data['first_name'], participant_data['last_name']))
 			return redirect(reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange.pk}))
 

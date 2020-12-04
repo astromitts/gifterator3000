@@ -75,8 +75,11 @@ class Dashboard(AuthenticatedView):
 	def get(self, request, *args, **kwargs):
 		template = loader.get_template('giftexchange/dashboard.html')
 		today = date.today()
-		giftexchanges = self.appuser.giftexchange_set.all()
-
+		admin_giftexchanges = self.appuser.giftexchange_set.all()
+		other_giftexchanges = []
+		for participant in self.appuser.participant_set.all():
+			other_giftexchanges.append(participant.giftexchange)
+		giftexchanges = list(set(list(admin_giftexchanges) + other_giftexchanges))
 		context = {
 			'breadcrumbs': [],
 			'giftexchanges': giftexchanges,
@@ -219,18 +222,29 @@ class GiftExchangePersonalDetailEdit(GiftExchangeView):
 	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangePersonalDetailEdit, self).setup(request, *args, **kwargs)
-		self.participant = Participant.objects.get(pk=kwargs['participant_id'])
+		self.participant = Participant.objects.get(_appuser=self.appuser, giftexchange=self.giftexchange)
 		self.template = loader.get_template('giftexchange/generic_form.html')
-		self.context = {
-			'breadcrumbs': [
-				('dashboard', reverse('dashboard')),
-				(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
-				('{}'.format(self.participant.name), reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': self.participant.pk})),
-				('Edit Participant Details', None),
-			],
-			'form': None,
-		}
+		if self.is_admin:
+			self.context = {
+				'breadcrumbs': [
+					('dashboard', reverse('dashboard')),
+					(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+					('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
+					('{}'.format(self.participant.name), reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': self.participant.pk})),
+					('Edit Participant Details', None),
+				],
+				'form': None,
+			}
+		else:
+			self.context = {
+				'breadcrumbs': [
+					('dashboard', reverse('dashboard')),
+					('{}'.format(self.giftexchange.title), None),
+					('{}: Details'.format(self.participant.name), None),
+				],
+				'form': None,
+			}
+
 
 	def post(self, request, *args, **kwargs):
 		form = ParticipantDetailsForm(request.POST)
@@ -247,7 +261,7 @@ class GiftExchangePersonalDetailEdit(GiftExchangeView):
 				additional_info=request.POST['additional_info']
 			)
 			messages.success(request, 'Updated details for this gift exchange')
-			return redirect(reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': participant_details.pk}))
+			return redirect(reverse('giftexchange_detail_edit', kwargs={'giftexchange_id': self.giftexchange_id}))
 		else:
 			form = ParticipantDetailsForm(instance=self.participant_details)
 			self.context['form'] = form

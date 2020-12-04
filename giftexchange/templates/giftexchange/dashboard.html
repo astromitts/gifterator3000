@@ -9,7 +9,9 @@
 			 	<div class="card-body">
 			 		<h5 class="card-title">{{giftexchange.title}}</h5>
 			 		<h6 class="card-subtitle mb-2 text-muted">{{giftexchange.location}}, {{giftexchange.date}}</h6>
+			 		<a href="{% url 'giftexchange_detail_edit' giftexchange_id=giftexchange.pk %}" class="btn btn-success">Edit My Details</a>
 					{% if appuser in giftexchange.admin_appuser.all %}
+						<hr />
 						<a href="{% url 'giftexchange_manage_dashboard' giftexchange_id=giftexchange.pk %}" class="card-link">Manage</a>
 					{% endif %}
 			 	</div>

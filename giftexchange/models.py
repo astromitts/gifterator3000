@@ -375,6 +375,7 @@ class GiftExchange(models.Model):
 
 class Participant(models.Model):
 	giftexchange = models.ForeignKey(GiftExchange, on_delete=models.CASCADE)
+	_appuser = models.ForeignKey(AppUser, blank=True, null=True, on_delete=models.CASCADE)
 	status = models.CharField(
 		max_length=10,
 		default='invited',
@@ -401,10 +402,14 @@ class Participant(models.Model):
 
 	@property
 	def appuser(self):
-		djangouser = User.objects.filter(email=self.email).first()
-		if djangouser:
-			return AppUser.objects.filter(djangouser=djangouser).first()
-		return None
+		if not self._appuser:
+			djangouser = User.objects.filter(email=self.email).first()
+			if djangouser:
+				return AppUser.objects.filter(djangouser=djangouser).first()
+			else:
+				return None
+		else:
+			return self._appuser
 
 
 	@property
@@ -427,7 +432,7 @@ class Participant(models.Model):
 		self.save()
 
 	@classmethod
-	def patch(cls, first_name, last_name, email, giftexchange, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, status=None, additional_info=None):
+	def patch(cls, appuser, first_name, last_name, email, giftexchange, likes=None, dislikes=None, allergies_sensitivities=None, shipping_address=None, status=None, additional_info=None):
 		created = False
 		existing_participant = cls.objects.filter(email=email, giftexchange=giftexchange).exists()
 		if existing_participant:
@@ -439,7 +444,7 @@ class Participant(models.Model):
 				giftexchange=giftexchange,
 			)
 			created = True
-
+		participant._appuser = appuser
 		participant.first_name = first_name
 		participant.last_name = last_name
 		if likes:
