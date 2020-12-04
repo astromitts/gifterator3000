@@ -17,6 +17,7 @@ urlpatterns = [
     path('profile/', app_views.ManageProfile.as_view(), name='profile'),
     path('giftexchange/create/', app_views.CreateGiftExchange.as_view(), name='giftexchange_create_new'),
     path('giftexchange/<int:giftexchange_id>/editdetails/', app_views.GiftExchangePersonalDetailEdit.as_view(), name='giftexchange_detail_edit'),
+    path('giftexchange/<int:giftexchange_id>/editdetails/<int:participant_id>', app_views.GiftExchangePersonalDetailEdit.as_view(), name='giftexchange_admin_detail_edit'),
     path('giftexchange/<int:giftexchange_id>/manage/', admin_views.GiftExchangeAdminDetail.as_view(), name='giftexchange_manage_dashboard'),
     path('giftexchange/<int:giftexchange_id>/manage/editdetails/', admin_views.GiftExchangeEdit.as_view(), name='giftexchange_manage_edit_details'),
     path('giftexchange/<int:giftexchange_id>/manage/participants/', admin_views.ParticipantsList.as_view(), name='giftexchange_manage_participants'),

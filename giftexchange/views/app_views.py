@@ -2,7 +2,7 @@ from datetime import date
 from django.contrib import messages
 from django.template import loader
 from django.http import HttpResponse, Http404
-from django.shortcuts import redirect
+from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.views import View
@@ -222,31 +222,49 @@ class GiftExchangePersonalDetailEdit(GiftExchangeView):
 	"""
 	def setup(self, request, *args, **kwargs):
 		super(GiftExchangePersonalDetailEdit, self).setup(request, *args, **kwargs)
-		self.participant = Participant.objects.get(_appuser=self.appuser, giftexchange=self.giftexchange)
-		self.template = loader.get_template('giftexchange/generic_form.html')
-		if self.is_admin:
-			self.context = {
-				'breadcrumbs': [
-					('dashboard', reverse('dashboard')),
-					(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
-					('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
-					('{}'.format(self.participant.name), reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': self.participant.pk})),
-					('Edit Participant Details', None),
-				],
-				'form': None,
-			}
+		self.permission_denied = False
+		if 'participant_id' in kwargs:
+			if self.is_admin:
+				self.participant = Participant.objects.get(
+					pk=kwargs['participant_id'],
+					giftexchange=self.giftexchange
+				)
+			else:
+				self.permission_denied = True
 		else:
-			self.context = {
-				'breadcrumbs': [
-					('dashboard', reverse('dashboard')),
-					('{}'.format(self.giftexchange.title), None),
-					('{}: Details'.format(self.participant.name), None),
-				],
-				'form': None,
-			}
+			self.participant = Participant.objects.get(_appuser=self.appuser, giftexchange=self.giftexchange)
+		if not self.permission_denied:
+			self.template = loader.get_template('giftexchange/generic_form.html')
+			if self.is_admin:
+				self.context = {
+					'breadcrumbs': [
+						('dashboard', reverse('dashboard')),
+						(self.giftexchange.title, reverse('giftexchange_manage_dashboard', kwargs={'giftexchange_id': self.giftexchange_id})),
+						('Manage Participants', reverse('giftexchange_manage_participants', kwargs={'giftexchange_id': self.giftexchange_id})),
+						('{}'.format(self.participant.name), reverse('giftexchange_detail_appuser', kwargs={'giftexchange_id': self.giftexchange_id, 'participant_id': self.participant.pk})),
+						('Edit Participant Details', None),
+					],
+					'form': None,
+				}
+			else:
+				self.context = {
+					'breadcrumbs': [
+						('dashboard', reverse('dashboard')),
+						('{}'.format(self.giftexchange.title), None),
+						('{}: Details'.format(self.participant.name), None),
+					],
+					'form': None,
+				}
 
 
 	def post(self, request, *args, **kwargs):
+		if self.permission_denied:
+			return render(
+				    request,
+				    'giftexchange/errors/unauthorized.html',
+				    context={},
+				    status=403
+				)
 		form = ParticipantDetailsForm(request.POST)
 		participant_details = self.participant
 		if form.is_valid():
@@ -268,6 +286,13 @@ class GiftExchangePersonalDetailEdit(GiftExchangeView):
 			return HttpResponse(self.template.render(self.context, request))
 
 	def get(self, request, *args, **kwargs):
+		if self.permission_denied:
+			return render(
+				    request,
+				    'giftexchange/errors/unauthorized.html',
+				    context={},
+				    status=403
+				)
 		participant_details = self.participant
 		form = ParticipantDetailsForm(instance=participant_details)
 		self.context['form'] = form

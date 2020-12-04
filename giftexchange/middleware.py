@@ -20,7 +20,7 @@ def request_validation(get_response):
             if settings.ENVIRONMENT == 'prod':
                 return render(
                         request,
-                        'giftexchange/error.html',
+                        'giftexchange/errors/error.html',
                         context={},
                         status=404
                     )
@@ -29,7 +29,7 @@ def request_validation(get_response):
         #         if settings.ENVIRONMENT == 'prod':
         #             return render(
         #                 request,
-        #                 'giftexchange/unauthorized.html',
+        #                 'giftexchange/errors/login_required.html',
         #                 context={},
         #                 status=403
         #             )
@@ -41,7 +41,7 @@ def request_validation(get_response):
             if settings.ENVIRONMENT == 'prod':
                 return render(
                         request,
-                        'giftexchange/error.html',
+                        'giftexchange/errors/error.html',
                         context={},
                         status=response.status_code
                     )

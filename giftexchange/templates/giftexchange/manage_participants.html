@@ -25,7 +25,7 @@
 							{% endif %}
 					</td>
 					<td>
-						<a href="{% url 'giftexchange_detail_appuser' giftexchange_id=giftexchange.pk participant_id=participant.pk %}">{{participant.first_name}} {{participant.last_name}}</a>
+						<a href="{% url 'giftexchange_admin_detail_edit' giftexchange_id=giftexchange.pk participant_id=participant.pk %}">{{participant.first_name}} {{participant.last_name}}</a>
 					</td>
 					<td>
 						{{participant.status}}
