@@ -24,16 +24,15 @@ def request_validation(get_response):
                         context={},
                         status=404
                     )
-
-        if not resolved_url.url_name in unauthentication_allowed_url_names:
-            if not request.session.get('user_is_authenticated'):
-                if settings.ENVIRONMENT == 'prod':
-                    return render(
-                        request,
-                        'giftexchange/unauthorized.html',
-                        context={},
-                        status=403
-                    )
+        # if not resolved_url.url_name in unauthentication_allowed_url_names:
+        #     if not request.session.get('user_is_authenticated'):
+        #         if settings.ENVIRONMENT == 'prod':
+        #             return render(
+        #                 request,
+        #                 'giftexchange/unauthorized.html',
+        #                 context={},
+        #                 status=403
+        #             )
 
         response = get_response(request)
         status_code = str(response.status_code)
